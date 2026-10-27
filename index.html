@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Saman Chords">
+<title>Saman Chords — Play Chords with Your Hands</title>
+<meta name="description" content="Saman Chords — Play Chords with Your Hands. Made by Saman.tunes">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- Self-hosting MediaPipe: put the package files in ./mediapipe/, point this src to ./mediapipe/hands.js and set MP_BASE below to './mediapipe/' -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+<style>
+  :root { --accent:#ffb347; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:#000; overflow:hidden; touch-action:manipulation;
+    font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#fff; }
+  canvas#view { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  video { display:none; }
+
+  #ctrls { position:fixed; right:max(10px,env(safe-area-inset-right)); bottom:max(14px,env(safe-area-inset-bottom));
+    display:flex; flex-direction:column; gap:10px; z-index:5; opacity:0; pointer-events:none; transition:opacity .35s ease; }
+  #ctrls.show { opacity:.7; pointer-events:auto; }
+  #ctrls button { width:44px; height:44px; border-radius:50%; border:1.5px solid rgba(255,255,255,.7);
+    background:rgba(0,0,0,.45); color:#fff; font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+
+  #start { position:fixed; inset:0; background:radial-gradient(circle at 50% 40%,#1c2a30,#06090b);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+    text-align:center; padding:24px; z-index:10; }
+  #start h1 { margin:0; font-size:30px; }
+  #start .sub { margin-top:-10px; color:#b9c6cc; font-size:15px; letter-spacing:.03em; }
+  .credit { margin-top:6px; font-size:12px; color:#6f8089; letter-spacing:.04em; }
+  #start p { margin:0; max-width:420px; line-height:1.9; color:#b9c6cc; direction:rtl; }
+  #startBtn { background:var(--accent); color:#111; border:0; font-size:18px; font-weight:800;
+    padding:14px 34px; border-radius:999px; cursor:pointer; }
+  #msg { color:#ff9b9b; min-height:22px; direction:rtl; max-width:420px; }
+  .chips { display:flex; flex-wrap:wrap; justify-content:center; gap:6px; max-width:380px; }
+  .chips span { padding:6px 12px; border-radius:999px; font-weight:700; color:#111; }
+
+  #sheet { position:fixed; inset:0; z-index:8; display:none; }
+  #sheet.open { display:block; }
+  #sheetBg { position:absolute; inset:0; background:rgba(0,0,0,.45); }
+  #sheetBox { position:absolute; left:0; right:0; bottom:0; max-height:66vh; overflow:auto; background:#12181c;
+    border-radius:20px 20px 0 0; padding:14px 14px max(16px,env(safe-area-inset-bottom)); box-shadow:0 -8px 30px rgba(0,0,0,.5); }
+  #sheetHead { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; direction:rtl; }
+  #sheetTitle { font-size:14px; color:#c9d6dc; line-height:1.5; }
+  #sheetTitle b { color:#fff; }
+  #sheetClose { border:0; background:#26333a; color:#fff; font-weight:800; font-size:14px; padding:9px 18px; border-radius:999px; cursor:pointer; }
+  #sheetGrid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; direction:ltr; }
+  .chBtn { height:52px; border-radius:12px; border:2px solid transparent; background:#1e2a30; color:#fff;
+    font-size:17px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; }
+  .chBtn i { width:10px; height:10px; border-radius:50%; display:block; }
+  .chBtn.sel { background:#27363e; }
+  .grpTitle { grid-column:1/-1; font-size:12px; font-weight:700; color:#8fa3ad; letter-spacing:.04em; margin:8px 2px 0; direction:rtl; text-align:right; }
+  .grpTitle:first-child { margin-top:0; }
+  #ctrls #rec.on { background:#e5262b; border-color:#e5262b; }
+  #recInd { position:fixed; left:max(12px,env(safe-area-inset-left)); top:max(12px,env(safe-area-inset-top)); z-index:7; display:none;
+    background:rgba(0,0,0,.55); padding:6px 12px; border-radius:99px; font-size:12px; font-weight:700; color:#fff; align-items:center; gap:7px; }
+  #recInd::before { content:""; width:9px; height:9px; border-radius:50%; background:#e5262b; animation:blink 1s infinite; }
+  @keyframes blink { 50% { opacity:.25; } }
+  #recModal { position:fixed; inset:0; z-index:9; display:none; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; padding:16px; background:rgba(0,0,0,.9); }
+  #recModal.open { display:flex; }
+  #recVideo { display:block; max-width:100%; max-height:62vh; border-radius:12px; background:#000; }
+  #recInfo { font-size:12px; color:#9fb0b8; direction:rtl; text-align:center; }
+  .rrow { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .rbtn { border:0; border-radius:999px; padding:12px 24px; font-size:15px; font-weight:800; cursor:pointer; background:#26333a; color:#fff; }
+  .rbtn.main { background:#ffb347; color:#111; }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<video id="cam" playsinline muted></video>
+
+<div id="ctrls">
+  <button id="rec" title="Record">⏺</button>
+  <button id="size" title="Panel size">▤</button>
+  <button id="flip" title="Switch camera">⟲</button>
+</div>
+
+<div id="recInd">00:00</div>
+<div id="recModal">
+  <video id="recVideo" controls playsinline></video>
+  <div id="recInfo"></div>
+  <div class="rrow">
+    <button class="rbtn main" id="recSave">ذخیره</button>
+    <button class="rbtn" id="recShare">اشتراک‌گذاری</button>
+    <button class="rbtn" id="recClose">بستن</button>
+  </div>
+</div>
+
+<div id="sheet">
+  <div id="sheetBg"></div>
+  <div id="sheetBox">
+    <div id="sheetHead"><div id="sheetTitle"></div><button id="sheetClose">تمام</button></div>
+    <div id="sheetGrid"></div>
+  </div>
+</div>
+
+<div id="start">
+  <h1>🖐 Saman Chords</h1>
+  <div class="sub">Play Chords with Your Hands</div>
+  <div class="chips" id="chips"></div>
+  <p>دوربین رو روشن کن و دستت رو جلوی دوربین بگیر.<br>
+     ۸ آکورد: ۱ تا ۴ انگشت با <b>شست باز</b> (ردیف بالا) و ۱ تا ۴ انگشت با <b>شست بسته</b> (ردیف پایین)<br>
+     روی هر کارت بزن تا لیست آکوردها باز بشه و آکوردش رو عوض کنی<br>
+     مشت یا بردن دست از کادر = سکوت · بالا/پایین بردن دست = روشنی صدا<br>
+     ⏺ ضبط ویدیو (صدای اپ + میکروفون؛ با هندزفری بهتره) · ▤ تغییر اندازه پنل · ⟲ عوض‌کردن دوربین<br>(با لمس یک جای خالی صفحه، دکمه‌ها ۳ ثانیه نشون داده می‌شن)</p>
+  <button id="startBtn">شروع</button>
+  <div id="msg"></div>
+  <div class="credit">Saman Chords · Made by Saman.tunes</div>
+</div>
+
+<script>
+// ---------- Config ----------
+const UPLOAD_URL = '';   // your Cloudflare Worker URL, e.g. 'https://saman-chords.NAME.workers.dev'. Empty = old behaviour (download / share)
+const MP_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/';   // or './mediapipe/' when self-hosted
+const MAX_REC_SEC = 90;  // keeps the video under Telegram's 50 MB bot upload limit
+const tg = window.Telegram && Telegram.WebApp, IN_TG = !!(tg && tg.initData);
+if(tg){ try{ tg.ready(); tg.expand(); tg.disableVerticalSwipes(); tg.setHeaderColor('#000000'); tg.setBackgroundColor('#000000'); }catch(e){} }
+if(IN_TG){
+  tg.onEvent('deactivated',()=>{ if(recorder&&recorder.state==='recording') recorder.stop(); if(stream) stream.getTracks().forEach(t=>t.stop()); });
+  tg.onEvent('activated',()=>{ if(loopOn) openCamera().catch(console.error); });
+}
+const BASE_PC = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+const IV = { maj:[0,4,7], min:[0,3,7], dom7:[0,4,7,10], min7:[0,3,7,10], maj7:[0,4,7,11],
+             sus2:[0,2,7], sus4:[0,5,7], add9:[0,4,7,14] };
+const SUFFIX = { '':'maj', m:'min', '7':'dom7', m7:'min7', maj7:'maj7', sus2:'sus2', sus4:'sus4', add9:'add9' };
+// picker order and groups
+const GROUPS = [
+  ['ماژورهای اصلی',   ['C','D','E','F','G','A']],
+  ['مینورهای اصلی',   ['Am','Dm','Em']],
+  ['مینورهای پرکاربرد',['Bm','F#m','Gm','Cm','C#m','G#m','Fm','D#m','A#m']],
+  ['ماژورهای تکمیلی', ['B','Bb','Eb','Ab','Db','Gb']],
+  ['هفتم‌ها',          ['A7','B7','C7','D7','E7','G7']],
+  ['مینور هفتم',      ['Am7','Dm7','Em7','Bm7','F#m7']],
+  ['تکمیلی',          ['Asus2','Dsus4','Cadd9','Cmaj7']],
+];
+// colours kept from earlier versions; the rest are generated from the root note
+const FIXED_COL = { Am:'#ff6fa5', C:'#ff5c5c', G:'#ffb347', D:'#c58bff', Em:'#ffe066', E:'#7dffa0', A:'#ff8a3d',
+  Dm:'#4ddbd0', F:'#5ec8ff', Bm:'#8fa4ff', B7:'#ff7ad9', E7:'#a6e86b', A7:'#ffa07a', D7:'#d9a0ff', G7:'#ffd27a',
+  C7:'#ff8080', Em7:'#9ae6b4', Cmaj7:'#ffc2e0', Dsus4:'#7fe0ff' };
+function hsl2hex(h,sat,l){ sat/=100; l/=100; const a=sat*Math.min(l,1-l);
+  const f=n=>{ const k=(n+h/30)%12; const c=l-a*Math.max(-1,Math.min(k-3,9-k,1)); return Math.round(255*c).toString(16).padStart(2,'0'); };
+  return '#'+f(0)+f(8)+f(4); }
+function parseChord(name){
+  const m=/^([A-G])([#b]?)(m7|maj7|m|7|sus2|sus4|add9)?$/.exec(name);
+  const pc=((BASE_PC[m[1]]+(m[2]==='#'?1:m[2]==='b'?-1:0))+12)%12, type=SUFFIX[m[3]||''];
+  return {pc,type};
+}
+// bass = root in octave 2; upper notes = chord tones packed close around MIDI 62 (smooth changes)
+function buildMidi(pc,type){
+  const ups=IV[type].map(x=>{ const t=(pc+x)%12; return Math.round((62-t)/12)*12+t; });
+  return [36+pc,...ups];
+}
+const CH={}, LIB_DEF=[];
+GROUPS.forEach(([,names])=>names.forEach(name=>{
+  const {pc,type}=parseChord(name);
+  const COLSHIFT={maj:[0,95,68],dom7:[0,95,68],min:[15,85,74],min7:[25,80,80],sus2:[40,80,78],sus4:[40,80,78],add9:[40,80,78],maj7:[8,80,80]}[type];
+  const color=FIXED_COL[name]||hsl2hex((pc*30+COLSHIFT[0])%360,COLSHIFT[1],COLSHIFT[2]);
+  CH[name]={name,color,midi:buildMidi(pc,type)}; LIB_DEF.push([name]);
+}));
+// 8 slots: 0-3 = thumb open + 1..4 fingers, 4-7 = thumb closed + 1..4 fingers
+const DEFAULT_SLOTS=['Am','G','F','E','C','Dm','Em','D'];
+const STORE_KEY='gesture-chords-slots-v1';
+function loadSlots(){
+  try{ const a=JSON.parse(localStorage.getItem(STORE_KEY)||'null');
+    if(Array.isArray(a)&&a.length===8&&a.every(n=>CH[n])) return a; }catch(e){}
+  return DEFAULT_SLOTS.slice();
+}
+function saveSlots(){ try{ localStorage.setItem(STORE_KEY,JSON.stringify(slots)); }catch(e){} }
+const slots=loadSlots();
+const chordOf=i=>CH[slots[i]];
+const THUMB_OPEN=1.30, THUMB_CLOSE=1.15;           // tune if thumb detection feels off (add ?debug=1 to the URL to see the value)
+const DEBUG=/[?&]debug/.test(location.search);
+const CONN = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
+              [9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20]];
+
+const canvas = document.getElementById('view'), ctx = canvas.getContext('2d');
+const video = document.getElementById('cam');
+document.getElementById('chips').innerHTML = slots.map(n =>
+  `<span style="background:${CH[n].color}">${n}</span>`).join('');
+
+// ---------- Audio ----------
+let actx, master, filter, analyser, recDest, voice = null;
+function initAudio(){
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  master = actx.createGain(); master.gain.value = 0.55;
+  filter = actx.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value=1800; filter.Q.value=0.7;
+  analyser = actx.createAnalyser(); analyser.fftSize = 1024;
+  filter.connect(master); master.connect(analyser);
+  analyser.connect(actx.destination);
+  try{ recDest = actx.createMediaStreamDestination(); master.connect(recDest); }catch(e){ recDest=null; }
+}
+const mtof = m => 440*Math.pow(2,(m-69)/12);
+function startVoice(chord){
+  const g = actx.createGain(); g.gain.value = 0; g.connect(filter);
+  const oscs = [];
+  const upN=Math.max(1,chord.midi.length-1), upLvl=0.15*Math.sqrt(3/upN);
+  chord.midi.forEach((m,i)=>{
+    const f = mtof(m), lvl = i===0 ? 0.22 : upLvl;
+    [['sawtooth',-6],['triangle',5]].forEach(([type,det])=>{
+      const o = actx.createOscillator(), og = actx.createGain();
+      o.type=type; o.frequency.value=f; o.detune.value=det;
+      og.gain.value = type==='sawtooth' ? lvl*0.5 : lvl;
+      o.connect(og); og.connect(g); o.start(); oscs.push(o);
+    });
+  });
+  const t = actx.currentTime;
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.9,t+0.06);
+  return {g,oscs};
+}
+function stopVoice(v, rel=0.35){
+  if(!v) return;
+  const t = actx.currentTime;
+  v.g.gain.cancelScheduledValues(t);
+  v.g.gain.setValueAtTime(v.g.gain.value,t);
+  v.g.gain.linearRampToValueAtTime(0,t+rel);
+  setTimeout(()=>{ v.oscs.forEach(o=>{try{o.stop()}catch(e){}}); v.g.disconnect(); }, rel*1000+80);
+}
+
+// ---------- State ----------
+let current = -1, manualUntil = 0, accentNow = '#ffffff', sigPulse = 0, pillName = '', pillA = 0, pillPop = 0, pillW = 104;
+function setChord(i){
+  if(i===current) return;
+  const prev=current;
+  current = i;
+  sigPulse = 1; pillPop = 1; if(i>=0) pillA = 1;
+  if(actx){
+    if(actx.state==='suspended') actx.resume();
+    if(i>=0 && prev>=0 && voice && slots[i]===slots[prev]){ /* same chord on another slot: keep sounding */ }
+    else { stopVoice(voice); voice = i>=0 ? startVoice(chordOf(i)) : null; }
+  }
+  if(i>=0) document.documentElement.style.setProperty('--accent', chordOf(i).color);
+}
+addEventListener('keydown', e=>{
+  if(pickerOpen) return;
+  if(e.key>='1'&&e.key<='8'){ manualUntil=performance.now()+1500; setChord(+e.key-1); }
+  if(e.key==='0') setChord(-1);
+});
+
+// ---------- Finger counting ----------
+const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+function countFingers(lm){
+  const tips=[8,12,16,20], pips=[6,10,14,18]; let n=0;
+  tips.forEach((t,i)=>{ if(dist(lm[t],lm[0]) > dist(lm[pips[i]],lm[0])*1.08) n++; });
+  return n;
+}
+
+// Thumb state: tip-to-pinky-base distance relative to palm width. Large = thumb stretched out, small = folded in.
+let thumbOpen=true, thumbM=0;
+function updateThumb(lm){
+  const pw=dist(lm[5],lm[17])||1e-6;
+  thumbM=dist(lm[4],lm[17])/pw;
+  if(thumbOpen){ if(thumbM<THUMB_CLOSE) thumbOpen=false; }
+  else { if(thumbM>THUMB_OPEN) thumbOpen=true; }
+  return thumbOpen;
+}
+
+// ---------- Hand tracking (runs on a small copy of the frame) ----------
+let lastLm=null, lastSeen=0, stable={n:-2,c:0}, shown=0;
+// One-Euro filter: steady when the hand is still, responsive when it moves
+const oe={x:null,dx:null,t:0};
+const oeA=(c,dt)=>1/(1+(1/(2*Math.PI*c))/dt);
+function smoothLm(lm,t){
+  const dt=Math.max(0.001,(t-oe.t)/1000);
+  if(!oe.x||dt>0.5){ oe.x=lm.map(p=>[p.x,p.y]); oe.dx=lm.map(()=>[0,0]); oe.t=t; return lm.map(p=>({x:p.x,y:p.y,z:p.z})); }
+  oe.t=t;
+  return lm.map((p,i)=>{ const o=[p.x,p.y], r=[0,0];
+    for(let k=0;k<2;k++){
+      const d=(o[k]-oe.x[i][k])/dt;
+      oe.dx[i][k]+=(d-oe.dx[i][k])*oeA(1,dt);
+      const c=0.7+10*Math.abs(oe.dx[i][k]);          // lower 0.7 = steadier, higher 10 = faster follow
+      oe.x[i][k]+=(o[k]-oe.x[i][k])*oeA(c,dt);
+      r[k]=oe.x[i][k];
+    }
+    return {x:r[0],y:r[1],z:p.z}; });
+}
+let dispLm=null;
+function onResults(r){
+  if(r.multiHandLandmarks && r.multiHandLandmarks.length){
+    const now=performance.now();
+    const lm = smoothLm(r.multiHandLandmarks[0], now);
+    lastLm = lm; lastSeen = now;
+    const n = countFingers(lm); shown = n;
+    const open = updateThumb(lm);
+    const slot = (n>=1&&n<=4) ? (open?0:4)+n-1 : -1;      // fist / no fingers = silence
+    if(slot===stable.n) stable.c++; else stable={n:slot,c:1};
+    if(stable.c>=3 && performance.now()>manualUntil && !pickerOpen && !modalOpen) setChord(slot);
+    if(filter){
+      const y = Math.min(1,Math.max(0,lm[9].y));
+      filter.frequency.setTargetAtTime(500+(1-y)*3500, actx.currentTime, 0.08);
+    }
+  } else {
+    lastLm=null; dispLm=null; oe.x=null; stable={n:-2,c:0};
+    if(performance.now()>manualUntil && performance.now()-lastSeen>400) setChord(-1);
+  }
+}
+
+let stream=null, facing='user', hands=null, loopOn=false;
+const det = document.createElement('canvas'), dctx = det.getContext('2d');
+
+async function openCamera(){
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio:false, video:{
+      facingMode:facing, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30, max:30} }});
+  } catch(e){
+    stream = await navigator.mediaDevices.getUserMedia({ audio:false, video:{ facingMode:facing } });
+  }
+  video.srcObject = stream; await video.play();
+}
+async function startAll(){
+  await openCamera();
+  if(!hands){
+    hands = new Hands({ locateFile: f=>MP_BASE+f });
+    hands.setOptions({ maxNumHands:1, modelComplexity:0, minDetectionConfidence:0.6, minTrackingConfidence:0.5 });
+    hands.onResults(onResults);
+  }
+  if(loopOn) return; loopOn = true;
+  let busy=false;
+  (async function loop(){
+    if(!busy && video.readyState>=2 && video.videoWidth){
+      busy=true;
+      try{
+        const w=384, h=Math.round(384*video.videoHeight/video.videoWidth);
+        if(det.width!==w||det.height!==h){ det.width=w; det.height=h; }
+        dctx.drawImage(video,0,0,w,h);
+        await hands.send({image:det});
+      }catch(e){ console.error(e); }
+      busy=false;
+    }
+    requestAnimationFrame(loop);
+  })();
+}
+
+// ---------- Layout ----------
+let W=0,H=0,dpr=1, sizeMode=0, recording=false, modalOpen=false;           // 0 = small, 1 = tiny, 2 = hidden
+function resize(){
+  // normal use: light 1.5x canvas. while recording: up to ~1080 px wide (max 2.25x), even sizes for H.264
+  dpr = recording ? Math.min(devicePixelRatio||1, 1080/innerWidth, 2.25) : Math.min(1.5, devicePixelRatio||1);
+  W=innerWidth; H=innerHeight;
+  canvas.width=Math.round(W*dpr/2)*2; canvas.height=Math.round(H*dpr/2)*2;
+  ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
+}
+addEventListener('resize',()=>{ if(!recording) resize(); }); resize();
+
+function rr(x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+// Hand silhouette: n raised fingers (index->pinky), thumb open (sticks out) or closed (folded over the palm). Box = 48 x 56.
+function drawHandIcon(x,y,s,n,color,bg,thumbOpenIcon){
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  ctx.fillStyle=color; ctx.strokeStyle=color; ctx.lineCap='round';
+  const fx=[15.6,22.4,29.2,36], tipUp=[10,5,9,17], w=6.1;
+  // wrist + palm
+  rr(17,47,17,10,3); ctx.fill();
+  rr(12.4,29,27.2,22,9.5); ctx.fill();
+  if(thumbOpenIcon){
+    ctx.lineWidth=7.2;
+    ctx.beginPath(); ctx.moveTo(14,45); ctx.lineTo(4.8,32.5); ctx.stroke();
+  } else {
+    // thumb folded across the palm: just its outline, in the card colour
+    ctx.strokeStyle=bg; ctx.lineWidth=1.1; rr(14.8,40,19,8,4); ctx.stroke();
+    ctx.strokeStyle=color;
+  }
+  // fingers (raised = long capsules, curled = knuckle bumps)
+  ctx.lineWidth=w;
+  for(let i=0;i<4;i++){
+    ctx.beginPath(); ctx.moveTo(fx[i],34);
+    ctx.lineTo(fx[i], i<n ? tipUp[i]+w/2 : 26.5);
+    ctx.stroke();
+  }
+  // thin separators between neighbouring curled fingers
+  ctx.strokeStyle=bg; ctx.lineWidth=0.9;
+  for(let i=0;i<3;i++){
+    if(i>=n && i+1>=n){
+      const bx=(fx[i]+fx[i+1])/2;
+      ctx.beginPath(); ctx.moveTo(bx,25.5); ctx.lineTo(bx,34); ctx.stroke();
+    }
+  }
+  // fold crease on the curled fingers
+  if(n<4){
+    ctx.strokeStyle=bg; ctx.lineWidth=0.9;
+    ctx.beginPath(); ctx.moveTo(fx[Math.max(n,0)]-3,33.5); ctx.lineTo(fx[3]+3,33.5); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+let cardRects=[];
+function drawPanel(k0, accent){
+  cardRects=[];
+  if(sizeMode===2) return;
+  const k=Math.min(k0, H*0.62/462);                    // 8 cards must always fit on screen
+  const cw=76*k, ch=52*k, gap=6*k, gg=10*k, total=8*ch+6*gap+gg;
+  const x=Math.max(10,env_left()), y0=H/2-total/2+10*k;
+  if(current>=0){
+    ctx.save(); ctx.font=`700 ${26*k}px -apple-system,Segoe UI,Roboto,sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+    ctx.fillStyle='#fff'; ctx.shadowColor=accent; ctx.shadowBlur=14;
+    ctx.fillText(chordOf(current).name, x+cw/2, y0-14*k); ctx.restore();
+  }
+  for(let i=0;i<8;i++){
+    const y = i<4 ? y0+i*(ch+gap) : y0+4*(ch+gap)-gap+gg+(i-4)*(ch+gap);
+    const act=i===current, bg=act?accent:(i<4?'#ece9df':'#dbe5ea');
+    cardRects.push({x,y,w:cw,h:ch,i});
+    ctx.save();
+    ctx.globalAlpha=act?1:0.9;
+    ctx.fillStyle=bg; rr(x,y,cw,ch,3*k); ctx.fill();
+    ctx.globalAlpha=1;
+    const s=(ch*0.78)/56;
+    drawHandIcon(x+8*k, y+(ch-56*s)/2, s, (i%4)+1, '#16222b', bg, i<4);
+    ctx.fillStyle='#1b1b1b'; ctx.textAlign='center';
+    ctx.font=`700 ${20*k}px -apple-system,Segoe UI,Roboto,sans-serif`;
+    ctx.fillText(String(i+1), x+cw-20*k, y+ch*0.52);
+    const nm=chordOf(i).name; let fs=11*k;
+    ctx.font=`600 ${fs}px -apple-system,Segoe UI,Roboto,sans-serif`;
+    while(ctx.measureText(nm).width>34*k && fs>5){ fs-=0.4; ctx.font=`600 ${fs}px -apple-system,Segoe UI,Roboto,sans-serif`; }
+    ctx.fillText(nm, x+cw-20*k, y+ch*0.52+14*k);
+    ctx.restore();
+  }
+}
+const env_left = ()=>22;
+
+function mapPt(p,vw,vh){
+  const s=Math.max(W/vw,H/vh), ox=(W-vw*s)/2, oy=(H-vh*s)/2;
+  return { x:W-(p.x*vw*s+ox), y:p.y*vh*s+oy };
+}
+
+const buf=new Uint8Array(1024); let sigLevel=0, sigPhase=0, sigFreq=1.6, sigAmp=0.5;
+const sigCol=[255,255,255];
+const hex2rgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
+
+function render(){
+  const accent = current>=0 ? chordOf(current).color : '#ffffff';
+  const k = sizeMode===0 ? 0.78 : 0.56;
+
+  ctx.fillStyle='#0a0d0f'; ctx.fillRect(0,0,W,H);
+  const vw=video.videoWidth, vh=video.videoHeight;
+  if(vw){
+    const s=Math.max(W/vw,H/vh), ox=(W-vw*s)/2, oy=(H-vh*s)/2;
+    ctx.save();
+    if(facing==='user'){ ctx.translate(W,0); ctx.scale(-1,1); }
+    ctx.drawImage(video,ox,oy,vw*s,vh*s);
+    ctx.restore();
+  }
+  ctx.fillStyle='rgba(0,0,0,.28)'; ctx.fillRect(0,0,W,H);
+
+  // pill: "♪ CHORDS" + chord name that slides in on every change
+  { const py=Math.max(H*0.045,34), ph=26;
+    if(current>=0) pillName=chordOf(current).name;
+    if(current<0) pillA += (0-pillA)*0.14;      // name shows instantly, fades out only on silence
+    pillPop *= 0.75;                              // very short slide-in (~0.15s)
+    ctx.save();
+    ctx.font='800 11px -apple-system,Segoe UI,Roboto,sans-serif';
+    const cw=ctx.measureText('CHORDS').width;
+    ctx.font='800 13px -apple-system,Segoe UI,Roboto,sans-serif';
+    const nw=ctx.measureText(pillName).width;
+    pillW += (104+pillA*(nw+16)-pillW)*0.45;
+    const pw=pillW, px=W/2-pw/2;
+    ctx.fillStyle='rgba(18,38,48,.72)'; rr(px,py,pw,ph,13); ctx.fill();
+    ctx.textBaseline='middle'; ctx.textAlign='left';
+    const tcol=`rgb(${sigCol[0]|0},${sigCol[1]|0},${sigCol[2]|0})`;
+    ctx.font='800 11px -apple-system,Segoe UI,Roboto,sans-serif';
+    ctx.fillStyle=tcol; ctx.fillText('♪',px+14,py+ph/2+1);
+    ctx.fillStyle='#fff'; ctx.fillText('CHORDS',px+30,py+ph/2+1);
+    if(pillA>0.02){
+      ctx.globalAlpha=pillA;
+      ctx.font='800 13px -apple-system,Segoe UI,Roboto,sans-serif';
+      ctx.fillStyle=tcol; ctx.shadowColor=tcol; ctx.shadowBlur=8;
+      ctx.fillText(pillName, px+30+cw+10+pillPop*8, py+ph/2+1);
+    }
+    ctx.restore(); }
+
+  drawPanel(k, accent);
+
+  // hand skeleton (thin) + label
+  if(lastLm && vw){
+    if(!dispLm) dispLm=lastLm.map(p=>({x:p.x,y:p.y}));
+    else lastLm.forEach((p,i)=>{ dispLm[i].x+=(p.x-dispLm[i].x)*0.45; dispLm[i].y+=(p.y-dispLm[i].y)*0.45; });
+    const pts = dispLm.map(p=>{ const m=mapPt(p,vw,vh); if(facing!=='user') m.x=W-m.x; return m; });
+    ctx.save(); ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.strokeStyle=accent; ctx.shadowColor=accent; ctx.shadowBlur=9; ctx.lineWidth=2;
+    ctx.beginPath();
+    CONN.forEach(([a,b])=>{ ctx.moveTo(pts[a].x,pts[a].y); ctx.lineTo(pts[b].x,pts[b].y); });
+    ctx.stroke();
+    ctx.shadowBlur=0; ctx.fillStyle='#fff';
+    ctx.beginPath(); pts.forEach(p=>{ ctx.moveTo(p.x+3.2,p.y); ctx.arc(p.x,p.y,3.2,0,Math.PI*2); }); ctx.fill();
+    ctx.restore();
+    const top=Math.min(...pts.map(p=>p.y)), cx=pts.reduce((a,p)=>a+p.x,0)/pts.length;
+    ctx.save(); ctx.font='800 20px -apple-system,Segoe UI,Roboto,sans-serif'; ctx.textAlign='center';
+    ctx.fillStyle=accent; ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=8;
+    ctx.fillText(current>=0 ? `${current+1} · ${chordOf(current).name}` : `${shown} · –`,
+      Math.min(W-40,Math.max(40,cx)), Math.max(24,top-12));
+    if(DEBUG){ ctx.font='700 13px monospace'; ctx.fillStyle='#fff'; ctx.fillText(`thumb ${thumbOpen?'OPEN':'CLOSED'}  M=${thumbM.toFixed(2)}`, Math.min(W-90,Math.max(90,cx)), Math.max(24,top-12)+20); }
+    ctx.restore();
+  }
+
+  // waveform (smooth, flowing, reacts to loudness + chord changes)
+  if(analyser){
+    analyser.getByteTimeDomainData(buf);
+    let sum=0; for(let i=0;i<buf.length;i++){ const v=(buf[i]-128)/128; sum+=v*v; }
+    const target=Math.min(1, Math.sqrt(sum/buf.length)*5);
+    sigLevel += (target-sigLevel)*(target>sigLevel?0.18:0.05);
+  }
+  // colour glides to the chord colour, shape morphs per chord
+  const tc=hex2rgb(accent); for(let i=0;i<3;i++) sigCol[i]+=(tc[i]-sigCol[i])*0.07;
+  const col=`rgb(${sigCol[0]|0},${sigCol[1]|0},${sigCol[2]|0})`;
+  sigFreq += ((1.5+(current>=0?current%4:0)*0.3)-sigFreq)*0.04;
+  sigPulse *= 0.972;                                   // ~1.5s fade
+  const pe=sigPulse*sigPulse*(3-2*sigPulse);           // eased
+  sigPhase += 0.055 + sigLevel*0.07 + pe*0.07;
+  const baseY=H*0.82, maxD=H*0.065;                    // wave always stays inside this band
+  const ampl=maxD*(0.5+sigLevel*0.5)*(1+pe*0.25);
+  const prog=(1-sigPulse)*1.5-0.25;                    // ripple travelling across the screen
+  const N=64;
+  const yAt=(t,ph,sc)=>{
+    const taper=Math.pow(Math.sin(Math.PI*t),0.8);
+    const v=Math.sin(t*Math.PI*2*sigFreq+ph)*0.55
+          + Math.sin(t*Math.PI*2*sigFreq*0.55-ph*0.7+1.3)*0.33
+          + Math.sin(t*Math.PI*2*sigFreq*1.9+ph*1.4+0.6)*0.12;
+    const d=(t-prog)/0.16, ripple=sigPulse>0.01 ? Math.exp(-d*d)*sigPulse*0.9 : 0;
+    const disp=v*taper*ampl*sc*(1+ripple*0.5);
+    return baseY + maxD*Math.tanh(disp/maxD);          // soft limit, never leaves the band
+  };
+  const drawWave=(ph,sc,lw,c,al,gl)=>{
+    ctx.save(); ctx.globalAlpha=Math.min(1,al); ctx.strokeStyle=c; ctx.lineWidth=lw;
+    ctx.shadowColor=col; ctx.shadowBlur=gl; ctx.lineCap='round'; ctx.lineJoin='round';
+    const pts=[]; for(let i=0;i<=N;i++){ const t=i/N; pts.push([t*W, yAt(t,ph,sc)]); }
+    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    for(let i=1;i<N;i++){
+      const mx=(pts[i][0]+pts[i+1][0])/2, my=(pts[i][1]+pts[i+1][1])/2;
+      ctx.quadraticCurveTo(pts[i][0],pts[i][1],mx,my);
+    }
+    ctx.lineTo(pts[N][0],pts[N][1]);
+    ctx.stroke(); ctx.restore();
+  };
+  drawWave(sigPhase+1.2, 0.72, 1.6, '#ffffff', 0.4+pe*0.2, 0);            // faint secondary line
+  drawWave(sigPhase-0.35, 0.85, 1.4, col, 0.3+pe*0.4, 0);                  // trailing echo (shows on change)
+  drawWave(sigPhase, 1, 9+pe*8, col, 0.16+pe*0.18, 0);              // soft halo
+  drawWave(sigPhase, 1, 2.6, col, 0.95, 14+pe*14);                         // main glowing line
+  drawWave(sigPhase, 1, 1.4, '#ffffff', 0.9, 0);                           // bright core
+
+  // very subtle signature, only in recorded video
+  if(recording){
+    ctx.save(); ctx.font='600 11px -apple-system,Segoe UI,Roboto,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    try{ ctx.letterSpacing='2px'; }catch(e){}
+    ctx.globalAlpha=0.4; ctx.fillStyle='#fff'; ctx.shadowColor='rgba(0,0,0,.55)'; ctx.shadowBlur=4;
+    ctx.fillText('Saman Chords', W/2, H*0.93);
+    ctx.restore();
+  }
+
+  requestAnimationFrame(render);
+}
+render();
+
+// tap on cards
+const ctrlsEl=document.getElementById('ctrls'); let ctrlsTimer=0;
+function showCtrls(){ ctrlsEl.classList.add('show'); clearTimeout(ctrlsTimer); ctrlsTimer=setTimeout(()=>ctrlsEl.classList.remove('show'),3000); }
+canvas.addEventListener('pointerdown',e=>{
+  for(const r of cardRects){
+    if(e.clientX>=r.x&&e.clientX<=r.x+r.w&&e.clientY>=r.y&&e.clientY<=r.y+r.h){
+      openPicker(r.i); return;
+    }
+  }
+  showCtrls();   // tap on empty area reveals the buttons for 3s
+});
+
+// ---------- Chord picker (opens when a card is tapped) ----------
+const sheet=document.getElementById('sheet'), sheetGrid=document.getElementById('sheetGrid'), sheetTitle=document.getElementById('sheetTitle');
+let pickerOpen=false, pickerSlot=-1, pvVoice=null, pvTimer=0, openedAt=0;
+// The tap that opens the list is followed by a "ghost" click that lands on the list itself. Ignore clicks right after opening.
+const ghost=()=>performance.now()-openedAt<450;
+GROUPS.forEach(([title,names])=>{
+  const h=document.createElement('div'); h.className='grpTitle'; h.textContent=title; sheetGrid.appendChild(h);
+  names.forEach(name=>{
+    const b=document.createElement('button'); b.className='chBtn'; b.dataset.name=name;
+    b.innerHTML=`<i style="background:${CH[name].color}"></i>${name}`;
+    b.addEventListener('click',()=>{
+      if(ghost()||pickerSlot<0) return;
+      slots[pickerSlot]=name; saveSlots(); markSelected(); previewChord(CH[name]);
+    });
+    sheetGrid.appendChild(b);
+  });
+});
+function markSelected(){
+  sheetGrid.querySelectorAll('.chBtn').forEach(b=>{
+    const sel=b.dataset.name===slots[pickerSlot];
+    b.classList.toggle('sel',sel);
+    b.style.borderColor=sel?CH[b.dataset.name].color:'transparent';
+  });
+}
+function previewChord(ch){
+  if(!actx) return;
+  if(actx.state==='suspended') actx.resume();
+  clearTimeout(pvTimer); stopVoice(pvVoice,0.12);
+  pvVoice=startVoice(ch);
+  const v=pvVoice;
+  pvTimer=setTimeout(()=>{ stopVoice(v,0.45); if(pvVoice===v) pvVoice=null; },1000);
+}
+function openPicker(i){
+  if(pickerOpen) return;
+  pickerSlot=i; pickerOpen=true; openedAt=performance.now();
+  setChord(-1);                                         // gestures are paused while the list is open
+  if(filter) filter.frequency.setTargetAtTime(1800,actx.currentTime,0.05);
+  sheetTitle.innerHTML=`کارت <b>${i+1}</b> · ${i<4?'شست باز':'شست بسته'} · ${(i%4)+1} انگشت<br>یکی رو بزن تا انتخاب بشه و صداش رو بشنوی`;
+  markSelected();
+  sheet.classList.add('open');
+  const sel=sheetGrid.querySelector&&sheetGrid.querySelector('.chBtn.sel');
+  if(sel&&sel.scrollIntoView) sel.scrollIntoView({block:'center'});
+}
+function closePicker(){
+  pickerOpen=false; pickerSlot=-1; sheet.classList.remove('open');
+  clearTimeout(pvTimer); if(pvVoice){ stopVoice(pvVoice,0.2); pvVoice=null; }
+}
+document.getElementById('sheetClose').addEventListener('click',()=>{ if(!ghost()) closePicker(); });
+document.getElementById('sheetBg').addEventListener('click',()=>{ if(!ghost()) closePicker(); });
+
+// ---------- Controls ----------
+document.getElementById('size').onclick=()=>{ sizeMode=(sizeMode+1)%3; showCtrls(); };
+document.getElementById('flip').onclick=async()=>{
+  facing = facing==='user' ? 'environment' : 'user'; showCtrls();
+  try{ await openCamera(); }catch(e){ console.error(e); }
+};
+
+// ---------- Recording (canvas + synth audio) ----------
+const recBtn=document.getElementById('rec'), recInd=document.getElementById('recInd'), recModal=document.getElementById('recModal'),
+      recVideo=document.getElementById('recVideo'), recInfo=document.getElementById('recInfo'),
+      recSaveB=document.getElementById('recSave'), recShareB=document.getElementById('recShare');
+let recorder=null, recChunks=[], recTimer=0, recStart=0, recURL='', recFile=null, recMime='', recDims='';
+// ---------- Microphone: mixed into the recording only, never to the speaker (no feedback) ----------
+let micStream=null, micSrc=null, micGain=null, recMicOk=false;
+// raw capture: echo-cancel / noise-suppress / auto-gain put phones into "call mode" (narrow, hissy voice), so they are OFF
+const MIC_RAW={ echoCancellation:false, noiseSuppression:false, autoGainControl:false, voiceIsolation:false, channelCount:1 };
+const MIC_BAD=/bluetooth|airpods|buds|headset|headphone|hands.?free|wired|usb/i;                 // headphone mics: avoided
+const MIC_GOOD=/built-?in|iphone|phone|front|bottom|back|speakerphone|microphone array/i;       // the phone's own mic: preferred
+let micNodes=[];
+async function pickPhoneMic(){
+  try{
+    const list=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audioinput'&&d.label);
+    const good=list.filter(d=>!MIC_BAD.test(d.label)&&MIC_GOOD.test(d.label));
+    return (good[0]||list.find(d=>!MIC_BAD.test(d.label))||{}).deviceId||null;
+  }catch(e){ return null; }
+}
+async function startMic(){
+  if(!recDest || !navigator.mediaDevices) return false;
+  try{
+    micStream=await navigator.mediaDevices.getUserMedia({ video:false, audio:MIC_RAW });   // 1st call: permission + device names
+    const id=await pickPhoneMic(), cur=micStream.getAudioTracks()[0].getSettings().deviceId;
+    if(id && id!==cur){
+      try{
+        const s2=await navigator.mediaDevices.getUserMedia({ video:false, audio:{...MIC_RAW, deviceId:{exact:id}} });
+        micStream.getTracks().forEach(t=>t.stop()); micStream=s2;
+      }catch(e){ /* keep the default mic */ }
+    }
+    const n=f=>{ micNodes.push(f); return f; };
+    micSrc=actx.createMediaStreamSource(micStream);
+    micSrc.connect(recDest);   // plain mic, no gain, no effects -> recording only, never the speaker
+    if(actx.state==='suspended') await actx.resume();
+    return true;
+  }catch(e){ console.warn('mic',e); stopMic(); return false; }
+}
+function stopMic(){
+  try{ if(micSrc) micSrc.disconnect(); micNodes.forEach(x=>x.disconnect()); }catch(e){}
+  micNodes=[];
+  if(micStream) micStream.getTracks().forEach(t=>t.stop());
+  micStream=micSrc=micGain=null;
+}
+// ---------- Send the video to the user's chat with the bot (via the Worker) ----------
+const writeOK=()=>new Promise(r=>{ try{ tg.requestWriteAccess(ok=>r(ok!==false)); }catch(e){ r(true); } });
+async function sendToChat(){
+  if(recFile.size>49*1048576){ recInfo.textContent='حجم ویدیو از ۵۰ مگابایت بیشتره؛ کوتاه‌تر ضبط کن'; return; }
+  recSaveB.disabled=true; recInfo.textContent='در حال ارسال…';
+  try{
+    if(!(await writeOK())) throw new Error('اجازه‌ی ارسال پیام از ربات داده نشد');
+    const r=await fetch(UPLOAD_URL,{ method:'POST',
+      headers:{ 'X-Init-Data':tg.initData, 'X-File-Name':recFile.name, 'Content-Type':recFile.type }, body:recFile });
+    if(!r.ok) throw new Error(await r.text());
+    recInfo.textContent='✅ ویدیو توی چت ربات ارسال شد';
+    try{ tg.HapticFeedback.notificationOccurred('success'); }catch(e){}
+  }catch(e){ recInfo.textContent='ارسال نشد: '+e.message; }
+  recSaveB.disabled=false;
+}
+function pickMime(){
+  const t=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1,mp4a.40.2','video/mp4',
+           'video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  return window.MediaRecorder ? (t.find(x=>MediaRecorder.isTypeSupported(x))||'') : '';
+}
+async function startRec(){
+  if(!window.MediaRecorder || !canvas.captureStream){ alert('این مرورگر ضبط ویدیو رو پشتیبانی نمی‌کنه'); return; }
+  recMicOk=await startMic();                              // ask for the mic first (a permission prompt may appear)
+  recording=true; resize();                               // switch to the hi-res canvas BEFORE capturing
+  await new Promise(r=>setTimeout(r,200));                // let a frame render at the new size
+  recDims=canvas.width+'×'+canvas.height;
+  const vs=canvas.captureStream(30);
+  if(recDest) recDest.stream.getAudioTracks().forEach(t=>vs.addTrack(t));
+  recMime=pickMime();
+  const opts={videoBitsPerSecond:4000000, audioBitsPerSecond:128000}; if(recMime) opts.mimeType=recMime;
+  try{ recorder=new MediaRecorder(vs,opts); }catch(e){ recorder=new MediaRecorder(vs); }
+  recChunks=[];
+  recorder.ondataavailable=e=>{ if(e.data&&e.data.size) recChunks.push(e.data); };
+  recorder.onstop=finishRec;
+  recorder.start(1000);
+  if(IN_TG) try{ tg.enableClosingConfirmation(); }catch(e){}
+  recBtn.classList.add('on'); recBtn.textContent='■';
+  recInd.style.display='flex'; recStart=Date.now(); recInd.textContent='00:00';
+  recTimer=setInterval(()=>{ const t=Math.floor((Date.now()-recStart)/1000);
+    if(t>=MAX_REC_SEC && recorder && recorder.state==='recording') recorder.stop();
+    recInd.textContent=String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'); },250);
+}
+function finishRec(){
+  clearInterval(recTimer); recording=false; resize(); stopMic();
+  if(IN_TG) try{ tg.disableClosingConfirmation(); }catch(e){}
+  recBtn.classList.remove('on'); recBtn.textContent='⏺'; recInd.style.display='none';
+  const type=(recorder&&recorder.mimeType)||recMime||'video/webm', base=type.split(';')[0];
+  const ext=base.includes('mp4')?'mp4':'webm';
+  const blob=new Blob(recChunks,{type:base}); recChunks=[];
+  if(recURL) URL.revokeObjectURL(recURL);
+  recURL=URL.createObjectURL(blob);
+  recFile=new File([blob],`saman-chords-${Date.now()}.${ext}`,{type:base});
+  recVideo.src=recURL;
+  recInfo.textContent=`فرمت ${ext.toUpperCase()} · ${(blob.size/1048576).toFixed(1)} مگابایت · ${recDims} · ${recMicOk?'🎙 با میکروفون':'بدون میکروفون'}`
+    + (ext==='webm' && !IN_TG ? ' — اگه اینستاگرام WEBM رو قبول نکرد، با یه مبدل به MP4 تبدیلش کن' : '');
+  let canShare=false; try{ canShare=!!(navigator.canShare && navigator.canShare({files:[recFile]})); }catch(e){}
+  const viaChat=IN_TG&&!!UPLOAD_URL;
+  recSaveB.textContent=viaChat?'ارسال به چت':'ذخیره'; recSaveB.disabled=false;
+  recShareB.style.display=(canShare&&!viaChat)?'':'none';
+  modalOpen=true; setChord(-1);
+  recModal.classList.add('open');
+}
+function closeRec(){
+  modalOpen=false; recModal.classList.remove('open'); recVideo.pause();
+}
+recBtn.onclick=()=>{
+  showCtrls();
+  if(recorder && recorder.state==='recording') recorder.stop(); else startRec();
+};
+recSaveB.onclick=()=>{
+  if(!recFile) return;
+  if(IN_TG && UPLOAD_URL){ sendToChat(); return; }
+  const a=document.createElement('a'); a.href=recURL; a.download=recFile.name;
+  document.body.appendChild(a); a.click(); a.remove();
+};
+recShareB.onclick=async()=>{
+  try{ await navigator.share({files:[recFile], title:'Saman Chords'}); }catch(e){ /* cancelled */ }
+};
+document.getElementById('recClose').onclick=closeRec;
+
+// ---------- Start ----------
+document.getElementById('startBtn').addEventListener('click',async()=>{
+  const msg=document.getElementById('msg'); msg.textContent='';
+  try{
+    initAudio(); await actx.resume();
+    await startAll();
+    document.getElementById('start').style.display='none';
+  }catch(e){
+    console.error(e);
+    msg.textContent = e&&e.name==='NotAllowedError'
+      ? 'اجازه‌ی دوربین داده نشد. از تنظیمات گوشی، دسترسی دوربین رو برای تلگرام فعال کن و دوباره امتحان کن.'
+      : 'دسترسی به دوربین ممکن نشد یا اینترنت (برای لود مدل دست) قطع است: '+e.message;
+  }
+});
+</script>
+</body>
+</html>
