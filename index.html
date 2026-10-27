@@ -27,18 +27,47 @@
   #ctrls button { width:44px; height:44px; border-radius:50%; border:1.5px solid rgba(255,255,255,.7);
     background:rgba(0,0,0,.45); color:#fff; font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
 
-  #start { position:fixed; inset:0; background:radial-gradient(circle at 50% 40%,#1c2a30,#06090b);
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
-    text-align:center; padding:24px; z-index:10; }
-  #start h1 { margin:0; font-size:30px; }
-  #start .sub { margin-top:-10px; color:#b9c6cc; font-size:15px; letter-spacing:.03em; }
-  .credit { margin-top:6px; font-size:12px; color:#6f8089; letter-spacing:.04em; }
-  #start p { margin:0; max-width:420px; line-height:1.9; color:#b9c6cc; direction:rtl; }
-  #startBtn { background:var(--accent); color:#111; border:0; font-size:18px; font-weight:800;
-    padding:14px 34px; border-radius:999px; cursor:pointer; }
-  #msg { color:#ff9b9b; min-height:22px; direction:rtl; max-width:420px; }
-  .chips { display:flex; flex-wrap:wrap; justify-content:center; gap:6px; max-width:380px; }
-  .chips span { padding:6px 12px; border-radius:999px; font-weight:700; color:#111; }
+  /* ---------- Start screen ---------- */
+  :root { --sa:#ff4d7d; --sa2:#ff2e63; --sbg:#07090d; --scard:#11161d; --sline:rgba(255,255,255,.08); }
+  #start { position:fixed; inset:0; z-index:10; overflow-y:auto; -webkit-overflow-scrolling:touch; direction:rtl;
+    background:radial-gradient(ellipse 90% 55% at 50% 0%,rgba(255,77,125,.20),transparent 62%),
+               radial-gradient(ellipse 80% 40% at 50% 105%,rgba(255,77,125,.10),transparent 60%), var(--sbg);
+    display:flex; flex-direction:column; align-items:center;
+    padding:max(26px,env(safe-area-inset-top)) 20px max(22px,env(safe-area-inset-bottom)); }
+  .sWrap { width:100%; max-width:400px; margin:auto 0; display:flex; flex-direction:column; gap:16px; }
+  .sHead { text-align:center; direction:ltr; }
+  .sLogo { width:64px; height:64px; margin:0 auto 14px; border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:32px;
+    background:linear-gradient(145deg,#2a1520,#12090e); border:1px solid rgba(255,77,125,.4);
+    box-shadow:0 0 34px rgba(255,77,125,.28), inset 0 0 18px rgba(255,77,125,.10); }
+  #start h1 { margin:0; font-size:26px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+  #start .sub { margin-top:6px; color:#8d98a3; font-size:11px; font-weight:600; letter-spacing:.22em; text-transform:uppercase; }
+  .sCard { background:var(--scard); border:1px solid var(--sline); border-radius:20px; padding:16px; }
+  .sPane.hide { display:none; }
+  .sPane { display:flex; flex-direction:column; gap:16px; }
+  .chips { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; direction:ltr; }
+  .chips span { padding:9px 0; border-radius:12px; font-weight:800; font-size:15px; text-align:center; color:#111; }
+  .steps { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; }
+  .steps li { display:flex; gap:12px; align-items:flex-start; font-size:13.5px; line-height:1.8; color:#c3ccd4; }
+  .steps li b { color:#fff; }
+  .steps .n { flex:0 0 26px; height:26px; margin-top:1px; border-radius:50%; background:rgba(255,77,125,.14); color:var(--sa);
+    border:1px solid rgba(255,77,125,.35); font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .sTips { margin:2px 0 0; padding-top:12px; border-top:1px solid var(--sline); font-size:12px; line-height:1.9; color:#7f8b96; }
+  .gateIcon { width:54px; height:54px; margin:0 auto; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:26px;
+    background:rgba(255,77,125,.12); border:1px solid rgba(255,77,125,.35); }
+  .gateCard { text-align:center; display:flex; flex-direction:column; gap:12px; padding:24px 18px; }
+  .gateCard h2 { margin:0; font-size:19px; font-weight:800; }
+  .gateCard p { margin:0; font-size:13.5px; line-height:1.9; color:#aab4be; }
+  .gateId { display:inline-block; direction:ltr; margin:2px auto 0; padding:7px 16px; border-radius:999px; font-weight:800; font-size:15px; color:var(--sa);
+    background:rgba(255,77,125,.10); border:1px solid rgba(255,77,125,.35); }
+  .sBtn { width:100%; height:52px; border:0; border-radius:16px; font-size:16px; font-weight:800; cursor:pointer; font-family:inherit; }
+  .sBtn.main { color:#fff; background:linear-gradient(135deg,#ff5c8a,var(--sa2)); box-shadow:0 8px 26px rgba(255,46,99,.35); }
+  .sBtn.ghost { color:#e6ebef; background:transparent; border:1.5px solid rgba(255,255,255,.18); }
+  .sBtn:disabled { opacity:.38; cursor:default; box-shadow:none; }
+  .sBtn:active:not(:disabled) { transform:scale(.98); }
+  #msg { color:#ff9b9b; min-height:20px; font-size:13px; line-height:1.7; text-align:center; direction:rtl; }
+  #gateMsg { color:#8d98a3; min-height:18px; font-size:12px; text-align:center; }
+  .credit { text-align:center; margin-top:2px; font-size:11px; color:#5d6872; letter-spacing:.08em; direction:ltr; }
+  .credit a { color:#8d98a3; text-decoration:none; }
 
   #sheet { position:fixed; inset:0; z-index:8; display:none; }
   #sheet.open { display:block; }
@@ -101,17 +130,44 @@
 </div>
 
 <div id="start">
-  <h1>🖐 Saman Chords</h1>
-  <div class="sub">Play Chords with Your Hands</div>
-  <div class="chips" id="chips"></div>
-  <p>دوربین رو روشن کن و دستت رو جلوی دوربین بگیر.<br>
-     ۸ آکورد: ۱ تا ۴ انگشت با <b>شست باز</b> (ردیف بالا) و ۱ تا ۴ انگشت با <b>شست بسته</b> (ردیف پایین)<br>
-     روی هر کارت بزن تا لیست آکوردها باز بشه و آکوردش رو عوض کنی<br>
-     مشت یا بردن دست از کادر = سکوت · بالا/پایین بردن دست = روشنی صدا<br>
-     ⏺ ضبط ویدیو (صدای اپ + میکروفون؛ با هندزفری بهتره) · ▤ تغییر اندازه پنل · ⟲ عوض‌کردن دوربین<br>(با لمس یک جای خالی صفحه، دکمه‌ها ۳ ثانیه نشون داده می‌شن)</p>
-  <button id="startBtn">شروع</button>
-  <div id="msg"></div>
-  <div class="credit">Saman Chords · Made by Saman.tunes</div>
+  <div class="sWrap">
+    <div class="sHead">
+      <div class="sLogo">🖐</div>
+      <h1>Saman Chords</h1>
+      <div class="sub">Play Chords with Your Hands</div>
+    </div>
+
+    <!-- Step 1: join the Telegram channel -->
+    <div class="sPane" id="gatePane">
+      <div class="sCard gateCard">
+        <div class="gateIcon">📣</div>
+        <h2>اول عضو کانال بشو</h2>
+        <p>برای استفاده از Saman Chords، لطفاً توی کانال تلگرام عضو شو تا از آپدیت‌ها و آموزش‌های جدید باخبر باشی.</p>
+        <div class="gateId">@Saman_sing</div>
+      </div>
+      <button class="sBtn main" id="joinBtn">عضویت در کانال</button>
+      <button class="sBtn ghost" id="joinedBtn" disabled>عضو شدم، ادامه</button>
+      <div id="gateMsg">بعد از عضویت برگرد اینجا و دکمه‌ی «عضو شدم» رو بزن</div>
+    </div>
+
+    <!-- Step 2: how it works + start -->
+    <div class="sPane hide" id="introPane">
+      <div class="chips" id="chips"></div>
+      <div class="sCard">
+        <ol class="steps">
+          <li><span class="n">۱</span><span>دوربین رو روشن کن و دستت رو جلوی دوربین بگیر.</span></li>
+          <li><span class="n">۲</span><span>۸ آکورد داری: ۱ تا ۴ انگشت با <b>شست باز</b> (ردیف بالا) و ۱ تا ۴ انگشت با <b>شست بسته</b> (ردیف پایین).</span></li>
+          <li><span class="n">۳</span><span>روی هر کارت بزن تا لیست آکوردها باز بشه و آکوردش رو عوض کنی.</span></li>
+          <li><span class="n">۴</span><span>مشت یا بردن دست از کادر = سکوت · بالا/پایین بردن دست = روشنی صدا.</span></li>
+        </ol>
+        <div class="sTips">⏺ ضبط ویدیو (صدای اپ + میکروفون؛ با هندزفری بهتره) · ▤ تغییر اندازه پنل · ⟲ عوض‌کردن دوربین<br>با لمس یک جای خالی صفحه، دکمه‌ها ۳ ثانیه نشون داده می‌شن.</div>
+      </div>
+      <button class="sBtn main" id="startBtn">شروع</button>
+      <div id="msg"></div>
+    </div>
+
+    <div class="credit">Saman Chords · Made by Saman.tunes</div>
+  </div>
 </div>
 
 <script>
@@ -767,6 +823,28 @@ document.getElementById('startBtn').addEventListener('click',async()=>{
       : 'دسترسی به دوربین ممکن نشد یا اینترنت (برای لود مدل دست) قطع است: '+e.message;
   }
 });
+
+// ---------- Channel gate (shown before the intro) ----------
+(function(){
+  const CHANNEL_URL='https://t.me/Saman_sing', JOIN_KEY='saman-chords-joined-v1';
+  const gate=document.getElementById('gatePane'), intro=document.getElementById('introPane');
+  const joinBtn=document.getElementById('joinBtn'), joinedBtn=document.getElementById('joinedBtn'), gateMsg=document.getElementById('gateMsg');
+  let already=false; try{ already=localStorage.getItem(JOIN_KEY)==='1'; }catch(e){}
+  const showIntro=()=>{ gate.classList.add('hide'); intro.classList.remove('hide'); };
+  if(already) showIntro();
+  joinBtn.addEventListener('click',()=>{
+    try{
+      if(tg && tg.openTelegramLink) tg.openTelegramLink(CHANNEL_URL);   // opens the channel inside Telegram
+      else window.open(CHANNEL_URL,'_blank');
+    }catch(e){ window.open(CHANNEL_URL,'_blank'); }
+    joinedBtn.disabled=false;
+    gateMsg.textContent='بعد از عضویت برگرد اینجا و «عضو شدم» رو بزن';
+  });
+  joinedBtn.addEventListener('click',()=>{
+    try{ localStorage.setItem(JOIN_KEY,'1'); }catch(e){}
+    showIntro();
+  });
+})();
 </script>
 </body>
 </html>
