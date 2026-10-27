@@ -116,7 +116,7 @@
 
 <script>
 // ---------- Config ----------
-const UPLOAD_URL = 'saman-chord-upload.samanhaeri8.workers.dev';   // your Cloudflare Worker URL, e.g. 'https://saman-chords.NAME.workers.dev'. Empty = old behaviour (download / share)
+const UPLOAD_URL = 'https://saman-chord-upload.samanhaeri8.workers.dev';   // your Cloudflare Worker URL, e.g. 'https://saman-chords.NAME.workers.dev'. Empty = old behaviour (download / share)
 const MP_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/';   // or './mediapipe/' when self-hosted
 const MAX_REC_SEC = 90;  // keeps the video under Telegram's 50 MB bot upload limit
 const tg = window.Telegram && Telegram.WebApp, IN_TG = !!(tg && tg.initData);
