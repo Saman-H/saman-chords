@@ -837,15 +837,30 @@ function stopMic(){
   micStream=micSrc=micGain=null;
 }
 // ---------- Send the video to the user's chat with the bot (via the Worker) ----------
-const writeOK=()=>new Promise(r=>{ try{ tg.requestWriteAccess(ok=>r(ok!==false)); }catch(e){ r(true); } });
+// if Telegram never answers requestWriteAccess (old clients), do not hang: continue after 4 s, the Worker will report a real error if sending is not allowed
+const writeOK=()=>new Promise(r=>{ let done=false; const fin=v=>{ if(!done){ done=true; r(v); } };
+  setTimeout(()=>fin(true),4000);
+  try{ tg.requestWriteAccess(ok=>fin(ok!==false)); }catch(e){ fin(true); } });
+// XHR instead of fetch: gives upload progress, a timeout, and the Worker's real status / error text
+function uploadVideo(){
+  return new Promise((resolve,reject)=>{
+    const x=new XMLHttpRequest(); x.open('POST',UPLOAD_URL);
+    x.setRequestHeader('X-Init-Data',tg.initData); x.setRequestHeader('X-File-Name',recFile.name); x.setRequestHeader('Content-Type',recFile.type);
+    x.timeout=900000;
+    x.upload.onprogress=e=>{ if(e.lengthComputable){ const p=Math.round(e.loaded/e.total*100);
+      recInfo.textContent= p<100 ? `در حال آپلود… ${p}٪ (${(e.loaded/1048576).toFixed(1)} از ${(e.total/1048576).toFixed(1)} مگابایت)` : 'آپلود تموم شد، در حال ارسال به تلگرام…'; } };
+    x.onload=()=>{ x.status>=200&&x.status<300 ? resolve(x.responseText) : reject(new Error(`کد ${x.status}: ${(x.responseText||'').slice(0,300)}`)); };
+    x.onerror=()=>reject(new Error('اتصال به سرور برقرار نشد (Worker در دسترس نیست یا اینترنت قطع شد)'));
+    x.ontimeout=()=>reject(new Error('زمان ارسال تموم شد (بیشتر از ۱۵ دقیقه)'));
+    x.send(recFile);
+  });
+}
 async function sendToChat(){
   if(recFile.size>49*1048576){ recInfo.textContent='حجم ویدیو از ۵۰ مگابایت بیشتره؛ کوتاه‌تر ضبط کن'; return; }
-  recSendB.disabled=true; recInfo.textContent='در حال ارسال…';
+  recSaveB.disabled=true; recSendB.disabled=true; recInfo.textContent='در حال ارسال…';
   try{
     if(!(await writeOK())) throw new Error('اجازه‌ی ارسال پیام از ربات داده نشد');
-    const r=await fetch(UPLOAD_URL,{ method:'POST',
-      headers:{ 'X-Init-Data':tg.initData, 'X-File-Name':recFile.name, 'Content-Type':recFile.type }, body:recFile });
-    if(!r.ok) throw new Error(await r.text());
+    await uploadVideo();
     recInfo.textContent='✅ ویدیو توی چت ربات ارسال شد';
     try{ tg.HapticFeedback.notificationOccurred('success'); }catch(e){}
   }catch(e){ recInfo.textContent='ارسال نشد: '+e.message; }
