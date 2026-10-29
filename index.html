@@ -86,6 +86,13 @@
   .grpTitle { grid-column:1/-1; font-size:12px; font-weight:700; color:#8fa3ad; letter-spacing:.04em; margin:8px 2px 0; direction:rtl; text-align:right; }
   .grpTitle:first-child { margin-top:0; }
   #ctrls #rec.on { background:#e5262b; border-color:#e5262b; }
+  #ctrls #mode.piano { border-color:var(--accent); }
+  #modeSeg { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:4px; margin-bottom:12px; border-radius:14px; background:#1a2328; direction:rtl; }
+  #modeSeg button { height:40px; border:0; border-radius:10px; background:transparent; color:#9fb0b8; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+  #modeSeg button.on { background:#2d3d45; color:#fff; box-shadow:inset 0 0 0 1.5px var(--accent); }
+  #toast { position:fixed; left:50%; top:max(70px,calc(env(safe-area-inset-top) + 56px)); transform:translateX(-50%); z-index:9; pointer-events:none;
+    background:rgba(0,0,0,.7); padding:8px 16px; border-radius:99px; font-size:13px; font-weight:700; color:#fff; opacity:0; transition:opacity .25s ease; direction:rtl; white-space:nowrap; }
+  #toast.show { opacity:1; }
   #recInd { position:fixed; left:max(12px,env(safe-area-inset-left)); top:max(12px,env(safe-area-inset-top)); z-index:7; display:none;
     background:rgba(0,0,0,.55); padding:6px 12px; border-radius:99px; font-size:12px; font-weight:700; color:#fff; align-items:center; gap:7px; }
   #recInd::before { content:""; width:9px; height:9px; border-radius:50%; background:#e5262b; animation:blink 1s infinite; }
@@ -108,7 +115,9 @@
   <button id="rec" title="Record">⏺</button>
   <button id="size" title="Panel size">▤</button>
   <button id="flip" title="Switch camera">⟲</button>
+  <button id="mode" title="Sound: piano / synth">🎛</button>
 </div>
+<div id="toast"></div>
 
 <div id="recInd">00:00</div>
 <div id="recModal">
@@ -125,6 +134,7 @@
   <div id="sheetBg"></div>
   <div id="sheetBox">
     <div id="sheetHead"><div id="sheetTitle"></div><button id="sheetClose">تمام</button></div>
+    <div id="modeSeg"><button data-mode="piano">🎹 پیانو</button><button data-mode="synth">🎛 سینتی (پد)</button></div>
     <div id="sheetGrid"></div>
   </div>
 </div>
@@ -160,7 +170,7 @@
           <li><span class="n">۳</span><span>روی هر کارت بزن تا لیست آکوردها باز بشه و آکوردش رو عوض کنی.</span></li>
           <li><span class="n">۴</span><span>مشت یا بردن دست از کادر = سکوت · بالا/پایین بردن دست = روشنی صدا.</span></li>
         </ol>
-        <div class="sTips">⏺ ضبط ویدیو (صدای اپ + میکروفون؛ با هندزفری بهتره) · ▤ تغییر اندازه پنل · ⟲ عوض‌کردن دوربین<br>با لمس یک جای خالی صفحه، دکمه‌ها ۳ ثانیه نشون داده می‌شن.</div>
+        <div class="sTips">⏺ ضبط ویدیو (صدای اپ + میکروفون؛ با هندزفری بهتره) · ▤ تغییر اندازه پنل · ⟲ عوض‌کردن دوربین · 🎹/🎛 تغییر صدا بین پیانو و سینتی<br>با لمس یک جای خالی صفحه، دکمه‌ها ۳ ثانیه نشون داده می‌شن.</div>
       </div>
       <button class="sBtn main" id="startBtn">شروع</button>
       <div id="msg"></div>
@@ -172,9 +182,10 @@
 
 <script>
 // ---------- Config ----------
-const UPLOAD_URL = 'https://saman-chord-upload.samanhaeri8.workers.dev';   // your Cloudflare Worker URL, e.g. 'https://saman-chords.NAME.workers.dev'. Empty = old behaviour (download / share)
+const UPLOAD_URL = '';   // send-to-chat disabled (was: 'https://saman-chord-upload.samanhaeri8.workers.dev'). Recording is shared/saved from the phone instead;   // your Cloudflare Worker URL, e.g. 'https://saman-chords.NAME.workers.dev'. Empty = old behaviour (download / share)
 const MP_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/';   // or './mediapipe/' when self-hosted
-const MAX_REC_SEC = 90;  // keeps the video under Telegram's 50 MB bot upload limit
+const APP_REC_GAIN = 0.5;   // level of the app's sound in the RECORDING only (0.5 = -6 dB; lower = quieter app, voice stands out more). Speaker/headphones and mic are untouched.
+const MAX_REC_SEC = Infinity;  // no time limit (about 60 MB per minute at 8 Mbps; the whole video is held in phone memory until you stop)
 const tg = window.Telegram && Telegram.WebApp, IN_TG = !!(tg && tg.initData);
 if(tg){ try{ tg.ready(); tg.expand(); tg.disableVerticalSwipes(); tg.setHeaderColor('#000000'); tg.setBackgroundColor('#000000'); }catch(e){} }
 if(IN_TG){
@@ -235,24 +246,94 @@ const DEBUG=/[?&]debug/.test(location.search);
 const CONN = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
               [9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20]];
 
-const canvas = document.getElementById('view'), ctx = canvas.getContext('2d');
+const canvas = document.getElementById('view'); let ctx = canvas.getContext('2d',{alpha:false}); const mainCtx = ctx;
 const video = document.getElementById('cam');
 document.getElementById('chips').innerHTML = slots.map(n =>
   `<span style="background:${CH[n].color}">${n}</span>`).join('');
 
 // ---------- Audio ----------
-let actx, master, filter, analyser, recDest, voice = null;
+let actx, master, filter, analyser, recDest, recGain, voice = null;
 function initAudio(){
+  noiseBuf=null;
   actx = new (window.AudioContext || window.webkitAudioContext)();
   master = actx.createGain(); master.gain.value = 0.55;
   filter = actx.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value=1800; filter.Q.value=0.7;
   analyser = actx.createAnalyser(); analyser.fftSize = 1024;
   filter.connect(master); master.connect(analyser);
   analyser.connect(actx.destination);
-  try{ recDest = actx.createMediaStreamDestination(); master.connect(recDest); }catch(e){ recDest=null; }
+  try{ recDest = actx.createMediaStreamDestination(); recGain = actx.createGain(); recGain.gain.value = APP_REC_GAIN; recGain.connect(recDest); }catch(e){ recDest=null; recGain=null; }   // master -> recGain -> recDest only while recording
 }
 const mtof = m => 440*Math.pow(2,(m-69)/12);
+
+// ---------- Sound mode: 'synth' (original pad) or 'piano' (synthesised piano) ----------
+const SOUND_KEY='saman-chords-sound-v1';
+const PIANO_DECAY=1;      // >1 = notes ring longer, <1 = shorter
+const PIANO_VEL=0.85;     // strike strength (0..1)
+const PIANO_THUMP=0.025;  // hammer-thump level (0 = off; was 0.12, too harsh)
+let soundMode='synth'; try{ if(localStorage.getItem(SOUND_KEY)==='piano') soundMode='piano'; }catch(e){}
+const filterBase=()=> soundMode==='piano' ? 6000 : 1800;           // resting cut-off (Hz)
+const filterLo =()=> soundMode==='piano' ? 2500 : 500;             // hand-height brightness range
+const filterSpan=()=> soundMode==='piano' ? 9500 : 3500;
+let noiseBuf=null;
+function getNoise(){
+  if(!noiseBuf){ const n=Math.floor(actx.sampleRate*0.06); noiseBuf=actx.createBuffer(1,n,actx.sampleRate);
+    const d=noiseBuf.getChannelData(0); for(let i=0;i<n;i++) d[i]=Math.random()*2-1; }
+  return noiseBuf;
+}
+// Piano = additive synthesis: every note is a set of sine partials with its own decay (highs die first),
+// slight inharmonicity (stretched partials), two detuned "strings" on the lowest partials, a soft hammer thump,
+// and a tiny strum offset so the chord is not perfectly machine-simultaneous.
+const PN_LOW =[0.85,1.00,0.72,0.50,0.34,0.22,0.14,0.09];    // partial levels for low notes (strong 2nd/3rd)
+const PN_HIGH=[1.00,0.32,0.14,0.07,0.04,0.02,0.01,0.01];    // ... and for high notes (mostly fundamental)
+function startPiano(chord){
+  const vg=actx.createGain(); vg.gain.value=1; vg.connect(filter);
+  const oscs=[], t0=actx.currentTime+0.005;
+  const upN=Math.max(1,chord.midi.length-1), upLvl=0.15*Math.sqrt(3/upN);
+  chord.midi.forEach((m,i)=>{
+    const f=mtof(m), k=Math.min(1,Math.max(0,(m-36)/48));
+    const lvl=(i===0?0.22:upLvl)*PIANO_VEL*(0.95+Math.random()*0.1);
+    const t=t0+i*0.009;
+    const B=0.0001*Math.pow(2,(m-60)/12);
+    const tc1=Math.max(1.6,6-(m-36)*0.075)*PIANO_DECAY;
+    const nP=m<50?8:6, amps=[]; let norm=0;
+    for(let n=0;n<nP;n++){ const a=PN_LOW[n]+(PN_HIGH[n]-PN_LOW[n])*k; amps.push(a); norm+=a; }
+    for(let n=1;n<=nP;n++){
+      const fn=n*f*Math.sqrt(1+B*n*n); if(fn>9000) break;
+      const a=lvl*1.5*amps[n-1]/norm, tc=tc1/(1+0.6*(n-1));
+      const strings=n<=2?[-1.4,1.4]:[0];
+      strings.forEach(det=>{
+        const o=actx.createOscillator(), og=actx.createGain();
+        o.type='sine'; o.frequency.value=fn; o.detune.value=det;
+        og.gain.setValueAtTime(0,t);
+        og.gain.linearRampToValueAtTime(a/(strings.length>1?1.5:1),t+0.008);
+        og.gain.setTargetAtTime(0,t+0.008,tc);
+        o.connect(og); og.connect(vg); o.start(t); o.stop(t+0.008+tc*8); oscs.push(o);
+      });
+    }
+  });
+  const ns=actx.createBufferSource(); ns.buffer=getNoise();
+  const nf=actx.createBiquadFilter(); nf.type='lowpass'; nf.frequency.value=700; nf.Q.value=0.5;
+  const ng=actx.createGain(); ng.gain.setValueAtTime(0.0001,t0); ng.gain.linearRampToValueAtTime(Math.max(0.0002,PIANO_THUMP*PIANO_VEL),t0+0.006); ng.gain.exponentialRampToValueAtTime(0.0002,t0+0.07);
+  ns.connect(nf); nf.connect(ng); ng.connect(vg); ns.start(t0); oscs.push(ns);
+  return {g:vg,oscs};
+}
+function setSoundMode(m, announce){
+  soundMode=m; try{ localStorage.setItem(SOUND_KEY,m); }catch(e){}
+  const pn=m==='piano';
+  const mb=document.getElementById('mode'); mb.textContent=pn?'🎹':'🎛'; mb.classList.toggle('piano',pn);
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+  if(actx && filter) filter.frequency.setTargetAtTime(filterBase(),actx.currentTime,0.05);
+  if(actx && voice && current>=0){ stopVoice(voice,0.15); voice=startVoice(chordOf(current)); }   // re-voice the chord that is sounding right now
+  if(announce){
+    const t=document.getElementById('toast'); t.textContent=pn?'🎹 صدای پیانو':'🎛 صدای سینتی (پد)';
+    t.classList.add('show'); clearTimeout(setSoundMode.tm); setSoundMode.tm=setTimeout(()=>t.classList.remove('show'),1400);
+  }
+}
+
 function startVoice(chord){
+  return soundMode==='piano' ? startPiano(chord) : startSynth(chord);
+}
+function startSynth(chord){
   const g = actx.createGain(); g.gain.value = 0; g.connect(filter);
   const oscs = [];
   const upN=Math.max(1,chord.midi.length-1), upLvl=0.15*Math.sqrt(3/upN);
@@ -346,9 +427,9 @@ function onResults(r){
     const slot = (n>=1&&n<=4) ? (open?0:4)+n-1 : -1;      // fist / no fingers = silence
     if(slot===stable.n) stable.c++; else stable={n:slot,c:1};
     if(stable.c>=3 && performance.now()>manualUntil && !pickerOpen && !modalOpen) setChord(slot);
-    if(filter){
+    if(filter && !pickerOpen){
       const y = Math.min(1,Math.max(0,lm[9].y));
-      filter.frequency.setTargetAtTime(500+(1-y)*3500, actx.currentTime, 0.08);
+      filter.frequency.setTargetAtTime(filterLo()+(1-y)*filterSpan(), actx.currentTime, 0.08);
     }
   } else {
     lastLm=null; dispLm=null; oe.x=null; stable={n:-2,c:0};
@@ -396,8 +477,8 @@ async function startAll(){
 // ---------- Layout ----------
 let W=0,H=0,dpr=1, sizeMode=0, recording=false, modalOpen=false;           // 0 = small, 1 = tiny, 2 = hidden
 function resize(){
-  // normal use: light 1.5x canvas. while recording: up to ~1080 px wide (max 2.25x), even sizes for H.264
-  dpr = recording ? Math.min(devicePixelRatio||1, 1080/innerWidth, 2.25) : Math.min(1.5, devicePixelRatio||1);
+  // same light 1.5x canvas for live view AND recording (like v12); even sizes for H.264
+  dpr = Math.min(1.5, devicePixelRatio||1);
   W=innerWidth; H=innerHeight;
   canvas.width=Math.round(W*dpr/2)*2; canvas.height=Math.round(H*dpr/2)*2;
   ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
@@ -450,7 +531,28 @@ function drawHandIcon(x,y,s,n,color,bg,thumbOpenIcon){
 }
 
 let cardRects=[];
-function drawPanel(k0, accent){
+// The 8-card panel is static between chord changes, so it is drawn once into an offscreen bitmap and only blitted each frame
+// (frees main-thread time -> the hand skeleton follows the hand more closely, like v12).
+let panelCv=null, panelCtx=null, panelKey='', panelBx=0, panelBy=0;
+function drawPanel(k, accent){
+  if(sizeMode===2){ cardRects=[]; return; }
+  const key=[W,H,canvas.width,canvas.height,sizeMode,current,accent,slots.join()].join('|');
+  if(key!==panelKey || !panelCv){
+    panelKey=key;
+    const sc=canvas.width/W, kk=Math.min(k, H*0.62/462);
+    const cw=76*kk, ch=52*kk, gap=6*kk, gg=10*kk, total=8*ch+6*gap+gg;
+    const x=Math.max(10,env_left()), y0=H/2-total/2+10*kk;
+    panelBx=0; panelBy=Math.max(0,Math.floor(y0-14*kk-26*kk-24));
+    const bw=Math.ceil(x+cw+24), bh=Math.min(H,Math.ceil(y0+total+8))-panelBy;
+    if(!panelCv){ panelCv=document.createElement('canvas'); panelCtx=panelCv.getContext('2d'); }
+    panelCv.width=Math.max(1,Math.ceil(bw*sc)); panelCv.height=Math.max(1,Math.ceil(bh*sc));
+    ctx=panelCtx; ctx.setTransform(sc,0,0,sc,-panelBx*sc,-panelBy*sc); ctx.clearRect(0,0,W,H);
+    try{ panelDraw(k, accent); } finally { ctx=mainCtx; }
+  }
+  const sc2=canvas.width/W;
+  mainCtx.drawImage(panelCv, panelBx, panelBy, panelCv.width/sc2, panelCv.height/sc2);
+}
+function panelDraw(k0, accent){
   cardRects=[];
   if(sizeMode===2) return;
   const k=Math.min(k0, H*0.62/462);                    // 8 cards must always fit on screen
@@ -665,7 +767,7 @@ function openPicker(i){
   if(pickerOpen) return;
   pickerSlot=i; pickerOpen=true; openedAt=performance.now();
   setChord(-1);                                         // gestures are paused while the list is open
-  if(filter) filter.frequency.setTargetAtTime(1800,actx.currentTime,0.05);
+  if(filter) filter.frequency.setTargetAtTime(filterBase(),actx.currentTime,0.05);
   sheetTitle.innerHTML=`کارت <b>${i+1}</b> · ${i<4?'شست باز':'شست بسته'} · ${(i%4)+1} انگشت<br>یکی رو بزن تا انتخاب بشه و صداش رو بشنوی`;
   markSelected();
   sheet.classList.add('open');
@@ -680,6 +782,10 @@ document.getElementById('sheetClose').addEventListener('click',()=>{ if(!ghost()
 document.getElementById('sheetBg').addEventListener('click',()=>{ if(!ghost()) closePicker(); });
 
 // ---------- Controls ----------
+document.getElementById('mode').onclick=()=>{ setSoundMode(soundMode==='piano'?'synth':'piano',true); showCtrls(); };
+document.querySelectorAll('#modeSeg button').forEach(b=>b.addEventListener('click',()=>{ if(!ghost()) setSoundMode(b.dataset.mode,false); }));
+setSoundMode(soundMode,false);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) setChord(-1); });   // no stuck notes when the app goes to the background
 document.getElementById('size').onclick=()=>{ sizeMode=(sizeMode+1)%3; showCtrls(); };
 document.getElementById('flip').onclick=async()=>{
   facing = facing==='user' ? 'environment' : 'user'; showCtrls();
@@ -690,7 +796,7 @@ document.getElementById('flip').onclick=async()=>{
 const recBtn=document.getElementById('rec'), recInd=document.getElementById('recInd'), recModal=document.getElementById('recModal'),
       recVideo=document.getElementById('recVideo'), recInfo=document.getElementById('recInfo'),
       recSaveB=document.getElementById('recSave'), recShareB=document.getElementById('recShare');
-let recorder=null, recChunks=[], recTimer=0, recStart=0, recURL='', recFile=null, recMime='', recDims='';
+let recStream=null, recOwned=[], recorder=null, recChunks=[], recTimer=0, recStart=0, recURL='', recFile=null, recMime='', recDims='';
 // ---------- Microphone: mixed into the recording only, never to the speaker (no feedback) ----------
 let micStream=null, micSrc=null, micGain=null, recMicOk=false;
 // raw capture: echo-cancel / noise-suppress / auto-gain put phones into "call mode" (narrow, hissy voice), so they are OFF
@@ -745,21 +851,30 @@ async function sendToChat(){
   recSaveB.disabled=false;
 }
 function pickMime(){
-  const t=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1,mp4a.40.2','video/mp4',
-           'video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  // H.264 High/Main level 4.x first (Baseline 3.0 is too small for a portrait full-screen canvas); VP8 before VP9 (VP9 is too heavy for phones in realtime)
+  const t=['video/mp4;codecs=avc1.640028,mp4a.40.2','video/mp4;codecs=avc1.4D4028,mp4a.40.2','video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+           'video/mp4;codecs=avc1,mp4a.40.2','video/mp4',
+           'video/webm;codecs=h264,opus','video/webm;codecs=vp8,opus','video/webm;codecs=vp9,opus','video/webm'];
   return window.MediaRecorder ? (t.find(x=>MediaRecorder.isTypeSupported(x))||'') : '';
 }
 async function startRec(){
   if(!window.MediaRecorder || !canvas.captureStream){ alert('این مرورگر ضبط ویدیو رو پشتیبانی نمی‌کنه'); return; }
   recMicOk=await startMic();                              // ask for the mic first (a permission prompt may appear)
-  recording=true; resize();                               // switch to the hi-res canvas BEFORE capturing
-  await new Promise(r=>setTimeout(r,200));                // let a frame render at the new size
+  recording=true;                                         // canvas keeps its live size: no resize, no hitch
   recDims=canvas.width+'×'+canvas.height;
   const vs=canvas.captureStream(30);
-  if(recDest) recDest.stream.getAudioTracks().forEach(t=>vs.addTrack(t));
+  recStream=vs; recOwned=[];
+  if(recDest){
+    try{ master.connect(recGain); }catch(e){}
+    recDest.stream.getAudioTracks().forEach(t=>{ let c=t; try{ c=t.clone(); recOwned.push(c); }catch(e){} vs.addTrack(c); });
+  }
   recMime=pickMime();
-  const opts={videoBitsPerSecond:4000000, audioBitsPerSecond:128000}; if(recMime) opts.mimeType=recMime;
-  try{ recorder=new MediaRecorder(vs,opts); }catch(e){ recorder=new MediaRecorder(vs); }
+  const opts={videoBitsPerSecond:8000000, audioBitsPerSecond:192000}; if(recMime) opts.mimeType=recMime;
+  try{
+    try{ recorder=new MediaRecorder(vs,opts); }catch(e){ recorder=new MediaRecorder(vs); }
+  }catch(e){
+    console.error(e); recording=false; stopMic(); releaseRec(); alert('شروع ضبط ممکن نشد'); return;
+  }
   recChunks=[];
   recorder.ondataavailable=e=>{ if(e.data&&e.data.size) recChunks.push(e.data); };
   recorder.onstop=finishRec;
@@ -771,8 +886,13 @@ async function startRec(){
     if(t>=MAX_REC_SEC && recorder && recorder.state==='recording') recorder.stop();
     recInd.textContent=String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'); },250);
 }
+function releaseRec(){   // stop the canvas capture + audio tap, otherwise they keep costing fps after the recording
+  try{ if(recStream) recStream.getVideoTracks().forEach(t=>t.stop()); recOwned.forEach(t=>t.stop()); }catch(e){}
+  try{ if(recGain) master.disconnect(recGain); }catch(e){}
+  recStream=null; recOwned=[];
+}
 function finishRec(){
-  clearInterval(recTimer); recording=false; resize(); stopMic();
+  clearInterval(recTimer); recording=false; resize(); stopMic(); releaseRec();
   if(IN_TG) try{ tg.disableClosingConfirmation(); }catch(e){}
   recBtn.classList.remove('on'); recBtn.textContent='⏺'; recInd.style.display='none';
   const type=(recorder&&recorder.mimeType)||recMime||'video/webm', base=type.split(';')[0];
@@ -785,9 +905,9 @@ function finishRec(){
   recInfo.textContent=`فرمت ${ext.toUpperCase()} · ${(blob.size/1048576).toFixed(1)} مگابایت · ${recDims} · ${recMicOk?'🎙 با میکروفون':'بدون میکروفون'}`
     + (ext==='webm' && !IN_TG ? ' — اگه اینستاگرام WEBM رو قبول نکرد، با یه مبدل به MP4 تبدیلش کن' : '');
   let canShare=false; try{ canShare=!!(navigator.canShare && navigator.canShare({files:[recFile]})); }catch(e){}
-  const viaChat=IN_TG&&!!UPLOAD_URL;
-  recSaveB.textContent=viaChat?'ارسال به چت':'ذخیره'; recSaveB.disabled=false;
-  recShareB.style.display=(canShare&&!viaChat)?'':'none';
+  recSaveB.textContent='ذخیره'; recSaveB.disabled=false;
+  recShareB.style.display=canShare?'':'none';
+  recSaveB.style.display=(IN_TG&&canShare)?'none':'';      // inside Telegram: Share is the way to save; Save stays only as a fallback
   modalOpen=true; setChord(-1);
   recModal.classList.add('open');
 }
@@ -813,7 +933,8 @@ document.getElementById('recClose').onclick=closeRec;
 document.getElementById('startBtn').addEventListener('click',async()=>{
   const msg=document.getElementById('msg'); msg.textContent='';
   try{
-    initAudio(); await actx.resume();
+    if(!actx) initAudio();
+    await actx.resume();
     await startAll();
     document.getElementById('start').style.display='none';
   }catch(e){
