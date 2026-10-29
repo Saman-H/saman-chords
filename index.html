@@ -14,7 +14,8 @@
 <!-- Self-hosting MediaPipe: put the package files in ./mediapipe/, point this src to ./mediapipe/hands.js and set MP_BASE below to './mediapipe/' -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 <style>
-  :root { --accent:#ffb347; }
+  :root { --accent:#ffb347; --dir:rtl; --ta:right; }
+  html[lang=en] { --dir:ltr; --ta:left; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { margin:0; height:100%; background:#000; overflow:hidden; touch-action:manipulation;
     font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#fff; }
@@ -29,7 +30,7 @@
 
   /* ---------- Start screen ---------- */
   :root { --sa:#ff4d7d; --sa2:#ff2e63; --sbg:#07090d; --scard:#11161d; --sline:rgba(255,255,255,.08); }
-  #start { position:fixed; inset:0; z-index:10; overflow-y:auto; -webkit-overflow-scrolling:touch; direction:rtl;
+  #start { position:fixed; inset:0; z-index:10; overflow-y:auto; -webkit-overflow-scrolling:touch; direction:var(--dir);
     background:radial-gradient(ellipse 90% 55% at 50% 0%,rgba(255,77,125,.20),transparent 62%),
                radial-gradient(ellipse 80% 40% at 50% 105%,rgba(255,77,125,.10),transparent 60%), var(--sbg);
     display:flex; flex-direction:column; align-items:center;
@@ -64,7 +65,7 @@
   .sBtn.ghost { color:#e6ebef; background:transparent; border:1.5px solid rgba(255,255,255,.18); }
   .sBtn:disabled { opacity:.38; cursor:default; box-shadow:none; }
   .sBtn:active:not(:disabled) { transform:scale(.98); }
-  #msg { color:#ff9b9b; min-height:20px; font-size:13px; line-height:1.7; text-align:center; direction:rtl; }
+  #msg { color:#ff9b9b; min-height:20px; font-size:13px; line-height:1.7; text-align:center; direction:var(--dir); }
   #gateMsg { color:#8d98a3; min-height:18px; font-size:12px; text-align:center; }
   .credit { text-align:center; margin-top:2px; font-size:11px; color:#5d6872; letter-spacing:.08em; direction:ltr; }
   .credit a { color:#8d98a3; text-decoration:none; }
@@ -74,7 +75,7 @@
   #sheetBg { position:absolute; inset:0; background:rgba(0,0,0,.45); }
   #sheetBox { position:absolute; left:0; right:0; bottom:0; max-height:66vh; overflow:auto; background:#12181c;
     border-radius:20px 20px 0 0; padding:14px 14px max(16px,env(safe-area-inset-bottom)); box-shadow:0 -8px 30px rgba(0,0,0,.5); }
-  #sheetHead { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; direction:rtl; }
+  #sheetHead { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; direction:var(--dir); }
   #sheetTitle { font-size:14px; color:#c9d6dc; line-height:1.5; }
   #sheetTitle b { color:#fff; }
   #sheetClose { border:0; background:#26333a; color:#fff; font-weight:800; font-size:14px; padding:9px 18px; border-radius:999px; cursor:pointer; }
@@ -83,9 +84,16 @@
     font-size:17px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; }
   .chBtn i { width:10px; height:10px; border-radius:50%; display:block; }
   .chBtn.sel { background:#27363e; }
-  .grpTitle { grid-column:1/-1; font-size:12px; font-weight:700; color:#8fa3ad; letter-spacing:.04em; margin:8px 2px 0; direction:rtl; text-align:right; }
+  .grpTitle { grid-column:1/-1; font-size:12px; font-weight:700; color:#8fa3ad; letter-spacing:.04em; margin:8px 2px 0; direction:var(--dir); text-align:var(--ta); }
   .grpTitle:first-child { margin-top:0; }
   #ctrls #rec.on { background:#e5262b; border-color:#e5262b; }
+  #ctrls #mode.piano { border-color:var(--accent); }
+  #modeSeg { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:4px; margin-bottom:12px; border-radius:14px; background:#1a2328; direction:var(--dir); }
+  #modeSeg button { height:40px; border:0; border-radius:10px; background:transparent; color:#9fb0b8; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+  #modeSeg button.on { background:#2d3d45; color:#fff; box-shadow:inset 0 0 0 1.5px var(--accent); }
+  #toast { position:fixed; left:50%; top:max(70px,calc(env(safe-area-inset-top) + 56px)); transform:translateX(-50%); z-index:9; pointer-events:none;
+    background:rgba(0,0,0,.7); padding:8px 16px; border-radius:99px; font-size:13px; font-weight:700; color:#fff; opacity:0; transition:opacity .25s ease; direction:var(--dir); white-space:nowrap; }
+  #toast.show { opacity:1; }
   #recInd { position:fixed; left:max(12px,env(safe-area-inset-left)); top:max(12px,env(safe-area-inset-top)); z-index:7; display:none;
     background:rgba(0,0,0,.55); padding:6px 12px; border-radius:99px; font-size:12px; font-weight:700; color:#fff; align-items:center; gap:7px; }
   #recInd::before { content:""; width:9px; height:9px; border-radius:50%; background:#e5262b; animation:blink 1s infinite; }
@@ -94,10 +102,14 @@
     gap:14px; padding:16px; background:rgba(0,0,0,.9); }
   #recModal.open { display:flex; }
   #recVideo { display:block; max-width:100%; max-height:62vh; border-radius:12px; background:#000; }
-  #recInfo { font-size:12px; color:#9fb0b8; direction:rtl; text-align:center; }
+  #recInfo { font-size:12px; color:#9fb0b8; direction:var(--dir); text-align:center; }
   .rrow { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
   .rbtn { border:0; border-radius:999px; padding:12px 24px; font-size:15px; font-weight:800; cursor:pointer; background:#26333a; color:#fff; }
   .rbtn.main { background:#ffb347; color:#111; }
+  .langRow { display:flex; justify-content:flex-end; direction:ltr; margin-bottom:-6px; }
+  #langBtn { border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#e6ebef; border-radius:999px;
+    padding:7px 15px; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer; }
+  #langBtn:active { transform:scale(.97); }
 </style>
 </head>
 <body>
@@ -108,29 +120,34 @@
   <button id="rec" title="Record">⏺</button>
   <button id="size" title="Panel size">▤</button>
   <button id="flip" title="Switch camera">⟲</button>
+  <button id="mode" title="Sound: piano / synth">🎛</button>
 </div>
+<div id="toast"></div>
 
 <div id="recInd">00:00</div>
 <div id="recModal">
   <video id="recVideo" controls playsinline></video>
   <div id="recInfo"></div>
   <div class="rrow">
-    <button class="rbtn main" id="recSave">ذخیره</button>
-    <button class="rbtn" id="recShare">اشتراک‌گذاری</button>
-    <button class="rbtn" id="recClose">بستن</button>
+    <button class="rbtn main" id="recSend" data-i18n="recSend" style="display:none">دریافت در چت ربات</button>
+    <button class="rbtn main" id="recSave" data-i18n="recSave">ذخیره</button>
+    <button class="rbtn" id="recShare" data-i18n="recShare">اشتراک‌گذاری</button>
+    <button class="rbtn" id="recClose" data-i18n="recClose">بستن</button>
   </div>
 </div>
 
 <div id="sheet">
   <div id="sheetBg"></div>
   <div id="sheetBox">
-    <div id="sheetHead"><div id="sheetTitle"></div><button id="sheetClose">تمام</button></div>
+    <div id="sheetHead"><div id="sheetTitle"></div><button id="sheetClose" data-i18n="sheetClose">تمام</button></div>
+    <div id="modeSeg"><button data-mode="piano" data-i18n="modePiano">🎹 پیانو</button><button data-mode="synth" data-i18n="modeSynth">🎛 سینتی (پد)</button></div>
     <div id="sheetGrid"></div>
   </div>
 </div>
 
 <div id="start">
   <div class="sWrap">
+    <div class="langRow"><button id="langBtn" type="button"></button></div>
     <div class="sHead">
       <div class="sLogo">🖐</div>
       <h1>Saman Chords</h1>
@@ -141,12 +158,12 @@
     <div class="sPane" id="gatePane">
       <div class="sCard gateCard">
         <div class="gateIcon">📣</div>
-        <h2>اول عضو کانال بشو</h2>
-        <p>برای استفاده از Saman Chords، لطفاً توی کانال تلگرام عضو شو تا از آپدیت‌ها و آموزش‌های جدید باخبر باشی.</p>
+        <h2 data-i18n="joinTitle">اول عضو کانال بشو</h2>
+        <p data-i18n="joinText">برای استفاده از Saman Chords، لطفاً توی کانال تلگرام عضو شو تا از آپدیت‌ها و آموزش‌های جدید باخبر باشی.</p>
         <div class="gateId">@Saman_sing</div>
       </div>
-      <button class="sBtn main" id="joinBtn">عضویت در کانال</button>
-      <button class="sBtn ghost" id="joinedBtn" disabled>عضو شدم، ادامه</button>
+      <button class="sBtn main" id="joinBtn" data-i18n="joinBtn">عضویت در کانال</button>
+      <button class="sBtn ghost" id="joinedBtn" data-i18n="joinedBtn" disabled>عضو شدم، ادامه</button>
       <div id="gateMsg">بعد از عضویت برگرد اینجا و دکمه‌ی «عضو شدم» رو بزن</div>
     </div>
 
@@ -155,14 +172,14 @@
       <div class="chips" id="chips"></div>
       <div class="sCard">
         <ol class="steps">
-          <li><span class="n">۱</span><span>دوربین رو روشن کن و دستت رو جلوی دوربین بگیر.</span></li>
-          <li><span class="n">۲</span><span>۸ آکورد داری: ۱ تا ۴ انگشت با <b>شست باز</b> (ردیف بالا) و ۱ تا ۴ انگشت با <b>شست بسته</b> (ردیف پایین).</span></li>
-          <li><span class="n">۳</span><span>روی هر کارت بزن تا لیست آکوردها باز بشه و آکوردش رو عوض کنی.</span></li>
-          <li><span class="n">۴</span><span>مشت یا بردن دست از کادر = سکوت · بالا/پایین بردن دست = روشنی صدا.</span></li>
+          <li><span class="n" data-i18n="n1">۱</span><span data-i18n="s1">دوربین رو روشن کن و دستت رو جلوی دوربین بگیر.</span></li>
+          <li><span class="n" data-i18n="n2">۲</span><span data-i18n="s2">۸ آکورد داری: ۱ تا ۴ انگشت با <b>شست باز</b> (ردیف بالا) و ۱ تا ۴ انگشت با <b>شست بسته</b> (ردیف پایین).</span></li>
+          <li><span class="n" data-i18n="n3">۳</span><span data-i18n="s3">روی هر کارت بزن تا لیست آکوردها باز بشه و آکوردش رو عوض کنی.</span></li>
+          <li><span class="n" data-i18n="n4">۴</span><span data-i18n="s4">مشت یا بردن دست از کادر = سکوت · بالا/پایین بردن دست = روشنی صدا.</span></li>
         </ol>
-        <div class="sTips">⏺ ضبط ویدیو (صدای اپ + میکروفون؛ با هندزفری بهتره) · ▤ تغییر اندازه پنل · ⟲ عوض‌کردن دوربین<br>با لمس یک جای خالی صفحه، دکمه‌ها ۳ ثانیه نشون داده می‌شن.</div>
+        <div class="sTips" data-i18n="tips">⏺ ضبط ویدیو (صدای اپ + میکروفون؛ با هندزفری بهتره) · ▤ تغییر اندازه پنل · ⟲ عوض‌کردن دوربین · 🎹/🎛 تغییر صدا بین پیانو و سینتی<br>با لمس یک جای خالی صفحه، دکمه‌ها ۳ ثانیه نشون داده می‌شن.</div>
       </div>
-      <button class="sBtn main" id="startBtn">شروع</button>
+      <button class="sBtn main" id="startBtn" data-i18n="startBtn">شروع</button>
       <div id="msg"></div>
     </div>
 
@@ -174,13 +191,114 @@
 // ---------- Config ----------
 const UPLOAD_URL = 'https://saman-chord-upload.samanhaeri8.workers.dev';   // your Cloudflare Worker URL, e.g. 'https://saman-chords.NAME.workers.dev'. Empty = old behaviour (download / share)
 const MP_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/';   // or './mediapipe/' when self-hosted
-const MAX_REC_SEC = 90;  // keeps the video under Telegram's 50 MB bot upload limit
+const APP_REC_GAIN = 0.5;   // level of the app's sound in the RECORDING only (0.5 = -6 dB; lower = quieter app, voice stands out more). Speaker/headphones and mic are untouched.
+const MAX_REC_SEC = Infinity;  // no time limit (about 60 MB per minute at 8 Mbps; the whole video is held in phone memory until you stop)
 const tg = window.Telegram && Telegram.WebApp, IN_TG = !!(tg && tg.initData);
 if(tg){ try{ tg.ready(); tg.expand(); tg.disableVerticalSwipes(); tg.setHeaderColor('#000000'); tg.setBackgroundColor('#000000'); }catch(e){} }
 if(IN_TG){
   tg.onEvent('deactivated',()=>{ if(recorder&&recorder.state==='recording') recorder.stop(); if(stream) stream.getTracks().forEach(t=>t.stop()); });
   tg.onEvent('activated',()=>{ if(loopOn) openCamera().catch(console.error); });
 }
+// ---------- Language (Persian / English) ----------
+const LANG_KEY='saman-chords-lang-v1';
+const I18N={
+  fa:{
+    langBtn:'English',
+    joinTitle:'اول عضو کانال بشو',
+    joinText:'برای استفاده از Saman Chords، لطفاً توی کانال تلگرام عضو شو تا از آپدیت‌ها و آموزش‌های جدید باخبر باشی.',
+    joinBtn:'عضویت در کانال', joinedBtn:'عضو شدم، ادامه',
+    gateMsg0:'بعد از عضویت برگرد اینجا و دکمه‌ی «عضو شدم» رو بزن',
+    gateMsgAfter:'بعد از عضویت برگرد اینجا و «عضو شدم» رو بزن',
+    n1:'۱', n2:'۲', n3:'۳', n4:'۴',
+    s1:'دوربین رو روشن کن و دستت رو جلوی دوربین بگیر.',
+    s2:'۸ آکورد داری: ۱ تا ۴ انگشت با <b>شست باز</b> (ردیف بالا) و ۱ تا ۴ انگشت با <b>شست بسته</b> (ردیف پایین).',
+    s3:'روی هر کارت بزن تا لیست آکوردها باز بشه و آکوردش رو عوض کنی.',
+    s4:'مشت یا بردن دست از کادر = سکوت · بالا/پایین بردن دست = روشنی صدا.',
+    tips:'⏺ ضبط ویدیو (صدای اپ + میکروفون؛ با هندزفری بهتره) · ▤ تغییر اندازه پنل · ⟲ عوض‌کردن دوربین · 🎹/🎛 تغییر صدا بین پیانو و سینتی<br>با لمس یک جای خالی صفحه، دکمه‌ها ۳ ثانیه نشون داده می‌شن.',
+    startBtn:'شروع',
+    recSend:'دریافت در چت ربات', recSave:'ذخیره', recShare:'اشتراک‌گذاری', recClose:'بستن', sheetClose:'تمام',
+    modePiano:'🎹 پیانو', modeSynth:'🎛 سینتی (پد)',
+    toastPiano:'🎹 صدای پیانو', toastSynth:'🎛 صدای سینتی (پد)',
+    thumbOpen:'شست باز', thumbClosed:'شست بسته', fing1:'انگشت', fingN:'انگشت',
+    sheetTitle:'کارت <b>{c}</b> · {thumb} · {f} {fw}<br>یکی رو بزن تا انتخاب بشه و صداش رو بشنوی',
+    upProg:'در حال آپلود… {p}٪ ({a} از {b} مگابایت)',
+    upDone:'آپلود تموم شد، در حال ارسال به تلگرام…',
+    errCode:'کد {s}: {r}',
+    errNet:'اتصال به سرور برقرار نشد (Worker در دسترس نیست یا اینترنت قطع شد)',
+    errTimeout:'زمان ارسال تموم شد (بیشتر از ۱۵ دقیقه)',
+    tooBig:'حجم ویدیو از ۵۰ مگابایت بیشتره؛ کوتاه‌تر ضبط کن',
+    sending:'در حال ارسال…',
+    allowDenied:'اجازه‌ی ارسال پیام از ربات داده نشد',
+    sent:'✅ ویدیو توی چت ربات ارسال شد',
+    sendFail:'ارسال نشد: ',
+    noRec:'این مرورگر ضبط ویدیو رو پشتیبانی نمی‌کنه',
+    recFail:'شروع ضبط ممکن نشد',
+    recInfo:'فرمت {ext} · {mb} مگابایت · {dims} · {mic}',
+    micOn:'🎙 با میکروفون', micOff:'بدون میکروفون',
+    webmNote:' — اگه اینستاگرام WEBM رو قبول نکرد، با یه مبدل به MP4 تبدیلش کن',
+    tgNoShare:'تلگرام روی این گوشی اجازه‌ی ذخیره یا اشتراک فایل نمی‌ده. لینک برنامه رو توی مرورگر (Chrome یا Safari) باز کن و از اونجا ضبط کن تا دانلود بشه.',
+    shareFail:'اشتراک‌گذاری روی این دستگاه ممکن نشد. لینک برنامه رو توی مرورگر (Chrome یا Safari) باز کن و از اونجا ضبط کن.',
+    camDenied:'اجازه‌ی دوربین داده نشد. از تنظیمات گوشی، دسترسی دوربین رو برای تلگرام فعال کن و دوباره امتحان کن.',
+    camFail:'دسترسی به دوربین ممکن نشد یا اینترنت (برای لود مدل دست) قطع است: '
+  },
+  en:{
+    langBtn:'فارسی',
+    joinTitle:'Join the channel first',
+    joinText:'To use Saman Chords, please join our Telegram channel so you get updates and new tutorials.',
+    joinBtn:'Join the channel', joinedBtn:"I've joined, continue",
+    gateMsg0:'After joining, come back here and tap “I’ve joined”',
+    gateMsgAfter:'After joining, come back here and tap “I’ve joined”',
+    n1:'1', n2:'2', n3:'3', n4:'4',
+    s1:'Turn on the camera and hold your hand in front of it.',
+    s2:'You get 8 chords: 1–4 fingers with an <b>open thumb</b> (top row) and 1–4 fingers with a <b>closed thumb</b> (bottom row).',
+    s3:'Tap any card to open the chord list and change its chord.',
+    s4:'Fist or hand out of frame = silence · move your hand up/down = sound brightness.',
+    tips:'⏺ Record video (app sound + microphone; headphones work best) · ▤ Resize panel · ⟲ Switch camera · 🎹/🎛 Switch sound between piano and synth<br>Tap an empty spot on the screen to show the buttons for 3 seconds.',
+    startBtn:'Start',
+    recSend:'Get in bot chat', recSave:'Save', recShare:'Share', recClose:'Close', sheetClose:'Done',
+    modePiano:'🎹 Piano', modeSynth:'🎛 Synth (pad)',
+    toastPiano:'🎹 Piano sound', toastSynth:'🎛 Synth (pad) sound',
+    thumbOpen:'thumb open', thumbClosed:'thumb closed', fing1:'finger', fingN:'fingers',
+    sheetTitle:'Card <b>{c}</b> · {thumb} · {f} {fw}<br>Tap one to select it and hear it',
+    upProg:'Uploading… {p}% ({a} of {b} MB)',
+    upDone:'Upload finished, sending to Telegram…',
+    errCode:'Error {s}: {r}',
+    errNet:"Couldn't reach the server (the Worker is unavailable or the internet is down)",
+    errTimeout:'Send timed out (over 15 minutes)',
+    tooBig:'The video is over 50 MB; record a shorter one',
+    sending:'Sending…',
+    allowDenied:'Permission to send messages from the bot was denied',
+    sent:'✅ Video sent to the bot chat',
+    sendFail:'Send failed: ',
+    noRec:"This browser doesn't support video recording",
+    recFail:"Couldn't start recording",
+    recInfo:'Format {ext} · {mb} MB · {dims} · {mic}',
+    micOn:'🎙 with microphone', micOff:'no microphone',
+    webmNote:' — If Instagram rejects WEBM, convert it to MP4 with a converter',
+    tgNoShare:"Telegram on this phone doesn't allow saving or sharing files. Open the app link in a browser (Chrome or Safari) and record there so it can be downloaded.",
+    shareFail:"Sharing isn't possible on this device. Open the app link in a browser (Chrome or Safari) and record there.",
+    camDenied:'Camera permission was denied. In your phone settings, allow camera access for Telegram and try again.',
+    camFail:"Couldn't access the camera, or the internet (needed to load the hand model) is down: "
+  }
+};
+const GROUP_T={
+  fa:['ماژورهای اصلی','مینورهای اصلی','مینورهای پرکاربرد','ماژورهای تکمیلی','هفتم‌ها','مینور هفتم','تکمیلی'],
+  en:['Main majors','Main minors','Common minors','Extra majors','Sevenths','Minor sevenths','Extras']
+};
+let LANG='fa'; try{ const l=localStorage.getItem(LANG_KEY); if(l==='en'||l==='fa') LANG=l; }catch(e){}
+let gateClicked=false;
+function tr(k,p){
+  let s=I18N[LANG][k]; if(s==null) s=I18N.fa[k]; if(s==null) return k;
+  return p ? s.replace(/\{(\w+)\}/g,(m,n)=>p[n]!=null?p[n]:m) : s;
+}
+function applyLang(){
+  document.documentElement.lang=LANG;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.innerHTML=tr(el.dataset.i18n); });
+  document.querySelectorAll('#sheetGrid .grpTitle').forEach(h=>{ h.textContent=GROUP_T[LANG][+h.dataset.gi]||h.textContent; });
+  const gm=document.getElementById('gateMsg'); if(gm) gm.textContent=tr(gateClicked?'gateMsgAfter':'gateMsg0');
+  const lb=document.getElementById('langBtn'); if(lb) lb.textContent=tr('langBtn');
+}
+
 const BASE_PC = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 const IV = { maj:[0,4,7], min:[0,3,7], dom7:[0,4,7,10], min7:[0,3,7,10], maj7:[0,4,7,11],
              sus2:[0,2,7], sus4:[0,5,7], add9:[0,4,7,14] };
@@ -235,24 +353,94 @@ const DEBUG=/[?&]debug/.test(location.search);
 const CONN = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
               [9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20]];
 
-const canvas = document.getElementById('view'), ctx = canvas.getContext('2d');
+const canvas = document.getElementById('view'); let ctx = canvas.getContext('2d',{alpha:false}); const mainCtx = ctx;
 const video = document.getElementById('cam');
 document.getElementById('chips').innerHTML = slots.map(n =>
   `<span style="background:${CH[n].color}">${n}</span>`).join('');
 
 // ---------- Audio ----------
-let actx, master, filter, analyser, recDest, voice = null;
+let actx, master, filter, analyser, recDest, recGain, voice = null;
 function initAudio(){
+  noiseBuf=null;
   actx = new (window.AudioContext || window.webkitAudioContext)();
   master = actx.createGain(); master.gain.value = 0.55;
   filter = actx.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value=1800; filter.Q.value=0.7;
   analyser = actx.createAnalyser(); analyser.fftSize = 1024;
   filter.connect(master); master.connect(analyser);
   analyser.connect(actx.destination);
-  try{ recDest = actx.createMediaStreamDestination(); master.connect(recDest); }catch(e){ recDest=null; }
+  try{ recDest = actx.createMediaStreamDestination(); recGain = actx.createGain(); recGain.gain.value = APP_REC_GAIN; recGain.connect(recDest); }catch(e){ recDest=null; recGain=null; }   // master -> recGain -> recDest only while recording
 }
 const mtof = m => 440*Math.pow(2,(m-69)/12);
+
+// ---------- Sound mode: 'synth' (original pad) or 'piano' (synthesised piano) ----------
+const SOUND_KEY='saman-chords-sound-v1';
+const PIANO_DECAY=1;      // >1 = notes ring longer, <1 = shorter
+const PIANO_VEL=0.85;     // strike strength (0..1)
+const PIANO_THUMP=0.025;  // hammer-thump level (0 = off; was 0.12, too harsh)
+let soundMode='synth'; try{ if(localStorage.getItem(SOUND_KEY)==='piano') soundMode='piano'; }catch(e){}
+const filterBase=()=> soundMode==='piano' ? 6000 : 1800;           // resting cut-off (Hz)
+const filterLo =()=> soundMode==='piano' ? 2500 : 500;             // hand-height brightness range
+const filterSpan=()=> soundMode==='piano' ? 9500 : 3500;
+let noiseBuf=null;
+function getNoise(){
+  if(!noiseBuf){ const n=Math.floor(actx.sampleRate*0.06); noiseBuf=actx.createBuffer(1,n,actx.sampleRate);
+    const d=noiseBuf.getChannelData(0); for(let i=0;i<n;i++) d[i]=Math.random()*2-1; }
+  return noiseBuf;
+}
+// Piano = additive synthesis: every note is a set of sine partials with its own decay (highs die first),
+// slight inharmonicity (stretched partials), two detuned "strings" on the lowest partials, a soft hammer thump,
+// and a tiny strum offset so the chord is not perfectly machine-simultaneous.
+const PN_LOW =[0.85,1.00,0.72,0.50,0.34,0.22,0.14,0.09];    // partial levels for low notes (strong 2nd/3rd)
+const PN_HIGH=[1.00,0.32,0.14,0.07,0.04,0.02,0.01,0.01];    // ... and for high notes (mostly fundamental)
+function startPiano(chord){
+  const vg=actx.createGain(); vg.gain.value=1; vg.connect(filter);
+  const oscs=[], t0=actx.currentTime+0.005;
+  const upN=Math.max(1,chord.midi.length-1), upLvl=0.15*Math.sqrt(3/upN);
+  chord.midi.forEach((m,i)=>{
+    const f=mtof(m), k=Math.min(1,Math.max(0,(m-36)/48));
+    const lvl=(i===0?0.22:upLvl)*PIANO_VEL*(0.95+Math.random()*0.1);
+    const t=t0+i*0.009;
+    const B=0.0001*Math.pow(2,(m-60)/12);
+    const tc1=Math.max(1.6,6-(m-36)*0.075)*PIANO_DECAY;
+    const nP=m<50?8:6, amps=[]; let norm=0;
+    for(let n=0;n<nP;n++){ const a=PN_LOW[n]+(PN_HIGH[n]-PN_LOW[n])*k; amps.push(a); norm+=a; }
+    for(let n=1;n<=nP;n++){
+      const fn=n*f*Math.sqrt(1+B*n*n); if(fn>9000) break;
+      const a=lvl*1.5*amps[n-1]/norm, tc=tc1/(1+0.6*(n-1));
+      const strings=n<=2?[-1.4,1.4]:[0];
+      strings.forEach(det=>{
+        const o=actx.createOscillator(), og=actx.createGain();
+        o.type='sine'; o.frequency.value=fn; o.detune.value=det;
+        og.gain.setValueAtTime(0,t);
+        og.gain.linearRampToValueAtTime(a/(strings.length>1?1.5:1),t+0.008);
+        og.gain.setTargetAtTime(0,t+0.008,tc);
+        o.connect(og); og.connect(vg); o.start(t); o.stop(t+0.008+tc*8); oscs.push(o);
+      });
+    }
+  });
+  const ns=actx.createBufferSource(); ns.buffer=getNoise();
+  const nf=actx.createBiquadFilter(); nf.type='lowpass'; nf.frequency.value=700; nf.Q.value=0.5;
+  const ng=actx.createGain(); ng.gain.setValueAtTime(0.0001,t0); ng.gain.linearRampToValueAtTime(Math.max(0.0002,PIANO_THUMP*PIANO_VEL),t0+0.006); ng.gain.exponentialRampToValueAtTime(0.0002,t0+0.07);
+  ns.connect(nf); nf.connect(ng); ng.connect(vg); ns.start(t0); oscs.push(ns);
+  return {g:vg,oscs};
+}
+function setSoundMode(m, announce){
+  soundMode=m; try{ localStorage.setItem(SOUND_KEY,m); }catch(e){}
+  const pn=m==='piano';
+  const mb=document.getElementById('mode'); mb.textContent=pn?'🎹':'🎛'; mb.classList.toggle('piano',pn);
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+  if(actx && filter) filter.frequency.setTargetAtTime(filterBase(),actx.currentTime,0.05);
+  if(actx && voice && current>=0){ stopVoice(voice,0.15); voice=startVoice(chordOf(current)); }   // re-voice the chord that is sounding right now
+  if(announce){
+    const t=document.getElementById('toast'); t.textContent=tr(pn?'toastPiano':'toastSynth');
+    t.classList.add('show'); clearTimeout(setSoundMode.tm); setSoundMode.tm=setTimeout(()=>t.classList.remove('show'),1400);
+  }
+}
+
 function startVoice(chord){
+  return soundMode==='piano' ? startPiano(chord) : startSynth(chord);
+}
+function startSynth(chord){
   const g = actx.createGain(); g.gain.value = 0; g.connect(filter);
   const oscs = [];
   const upN=Math.max(1,chord.midi.length-1), upLvl=0.15*Math.sqrt(3/upN);
@@ -346,9 +534,9 @@ function onResults(r){
     const slot = (n>=1&&n<=4) ? (open?0:4)+n-1 : -1;      // fist / no fingers = silence
     if(slot===stable.n) stable.c++; else stable={n:slot,c:1};
     if(stable.c>=3 && performance.now()>manualUntil && !pickerOpen && !modalOpen) setChord(slot);
-    if(filter){
+    if(filter && !pickerOpen){
       const y = Math.min(1,Math.max(0,lm[9].y));
-      filter.frequency.setTargetAtTime(500+(1-y)*3500, actx.currentTime, 0.08);
+      filter.frequency.setTargetAtTime(filterLo()+(1-y)*filterSpan(), actx.currentTime, 0.08);
     }
   } else {
     lastLm=null; dispLm=null; oe.x=null; stable={n:-2,c:0};
@@ -379,7 +567,7 @@ async function startAll(){
   if(loopOn) return; loopOn = true;
   let busy=false;
   (async function loop(){
-    if(!busy && video.readyState>=2 && video.videoWidth){
+    if(!busy && !modalOpen && video.readyState>=2 && video.videoWidth){   // no hand tracking while the preview/send window is open (frees CPU for the upload)
       busy=true;
       try{
         const w=384, h=Math.round(384*video.videoHeight/video.videoWidth);
@@ -396,8 +584,8 @@ async function startAll(){
 // ---------- Layout ----------
 let W=0,H=0,dpr=1, sizeMode=0, recording=false, modalOpen=false;           // 0 = small, 1 = tiny, 2 = hidden
 function resize(){
-  // normal use: light 1.5x canvas. while recording: up to ~1080 px wide (max 2.25x), even sizes for H.264
-  dpr = recording ? Math.min(devicePixelRatio||1, 1080/innerWidth, 2.25) : Math.min(1.5, devicePixelRatio||1);
+  // same light 1.5x canvas for live view AND recording (like v12); even sizes for H.264
+  dpr = Math.min(1.5, devicePixelRatio||1);
   W=innerWidth; H=innerHeight;
   canvas.width=Math.round(W*dpr/2)*2; canvas.height=Math.round(H*dpr/2)*2;
   ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
@@ -450,7 +638,28 @@ function drawHandIcon(x,y,s,n,color,bg,thumbOpenIcon){
 }
 
 let cardRects=[];
-function drawPanel(k0, accent){
+// The 8-card panel is static between chord changes, so it is drawn once into an offscreen bitmap and only blitted each frame
+// (frees main-thread time -> the hand skeleton follows the hand more closely, like v12).
+let panelCv=null, panelCtx=null, panelKey='', panelBx=0, panelBy=0;
+function drawPanel(k, accent){
+  if(sizeMode===2){ cardRects=[]; return; }
+  const key=[W,H,canvas.width,canvas.height,sizeMode,current,accent,slots.join()].join('|');
+  if(key!==panelKey || !panelCv){
+    panelKey=key;
+    const sc=canvas.width/W, kk=Math.min(k, H*0.62/462);
+    const cw=76*kk, ch=52*kk, gap=6*kk, gg=10*kk, total=8*ch+6*gap+gg;
+    const x=Math.max(10,env_left()), y0=H/2-total/2+10*kk;
+    panelBx=0; panelBy=Math.max(0,Math.floor(y0-14*kk-26*kk-24));
+    const bw=Math.ceil(x+cw+24), bh=Math.min(H,Math.ceil(y0+total+8))-panelBy;
+    if(!panelCv){ panelCv=document.createElement('canvas'); panelCtx=panelCv.getContext('2d'); }
+    panelCv.width=Math.max(1,Math.ceil(bw*sc)); panelCv.height=Math.max(1,Math.ceil(bh*sc));
+    ctx=panelCtx; ctx.setTransform(sc,0,0,sc,-panelBx*sc,-panelBy*sc); ctx.clearRect(0,0,W,H);
+    try{ panelDraw(k, accent); } finally { ctx=mainCtx; }
+  }
+  const sc2=canvas.width/W;
+  mainCtx.drawImage(panelCv, panelBx, panelBy, panelCv.width/sc2, panelCv.height/sc2);
+}
+function panelDraw(k0, accent){
   cardRects=[];
   if(sizeMode===2) return;
   const k=Math.min(k0, H*0.62/462);                    // 8 cards must always fit on screen
@@ -494,6 +703,7 @@ const sigCol=[255,255,255];
 const hex2rgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
 
 function render(){
+  if(modalOpen){ requestAnimationFrame(render); return; }   // nothing to draw behind the preview/send window: saves CPU while uploading
   const accent = current>=0 ? chordOf(current).color : '#ffffff';
   const k = sizeMode===0 ? 0.78 : 0.56;
 
@@ -634,8 +844,8 @@ const sheet=document.getElementById('sheet'), sheetGrid=document.getElementById(
 let pickerOpen=false, pickerSlot=-1, pvVoice=null, pvTimer=0, openedAt=0;
 // The tap that opens the list is followed by a "ghost" click that lands on the list itself. Ignore clicks right after opening.
 const ghost=()=>performance.now()-openedAt<450;
-GROUPS.forEach(([title,names])=>{
-  const h=document.createElement('div'); h.className='grpTitle'; h.textContent=title; sheetGrid.appendChild(h);
+GROUPS.forEach(([title,names],gi)=>{
+  const h=document.createElement('div'); h.className='grpTitle'; h.dataset.gi=gi; h.textContent=title; sheetGrid.appendChild(h);
   names.forEach(name=>{
     const b=document.createElement('button'); b.className='chBtn'; b.dataset.name=name;
     b.innerHTML=`<i style="background:${CH[name].color}"></i>${name}`;
@@ -665,8 +875,8 @@ function openPicker(i){
   if(pickerOpen) return;
   pickerSlot=i; pickerOpen=true; openedAt=performance.now();
   setChord(-1);                                         // gestures are paused while the list is open
-  if(filter) filter.frequency.setTargetAtTime(1800,actx.currentTime,0.05);
-  sheetTitle.innerHTML=`کارت <b>${i+1}</b> · ${i<4?'شست باز':'شست بسته'} · ${(i%4)+1} انگشت<br>یکی رو بزن تا انتخاب بشه و صداش رو بشنوی`;
+  if(filter) filter.frequency.setTargetAtTime(filterBase(),actx.currentTime,0.05);
+  sheetTitle.innerHTML=tr('sheetTitle',{c:i+1,thumb:tr(i<4?'thumbOpen':'thumbClosed'),f:(i%4)+1,fw:tr((i%4)===0?'fing1':'fingN')});
   markSelected();
   sheet.classList.add('open');
   const sel=sheetGrid.querySelector&&sheetGrid.querySelector('.chBtn.sel');
@@ -680,6 +890,10 @@ document.getElementById('sheetClose').addEventListener('click',()=>{ if(!ghost()
 document.getElementById('sheetBg').addEventListener('click',()=>{ if(!ghost()) closePicker(); });
 
 // ---------- Controls ----------
+document.getElementById('mode').onclick=()=>{ setSoundMode(soundMode==='piano'?'synth':'piano',true); showCtrls(); };
+document.querySelectorAll('#modeSeg button').forEach(b=>b.addEventListener('click',()=>{ if(!ghost()) setSoundMode(b.dataset.mode,false); }));
+setSoundMode(soundMode,false);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) setChord(-1); });   // no stuck notes when the app goes to the background
 document.getElementById('size').onclick=()=>{ sizeMode=(sizeMode+1)%3; showCtrls(); };
 document.getElementById('flip').onclick=async()=>{
   facing = facing==='user' ? 'environment' : 'user'; showCtrls();
@@ -689,8 +903,8 @@ document.getElementById('flip').onclick=async()=>{
 // ---------- Recording (canvas + synth audio) ----------
 const recBtn=document.getElementById('rec'), recInd=document.getElementById('recInd'), recModal=document.getElementById('recModal'),
       recVideo=document.getElementById('recVideo'), recInfo=document.getElementById('recInfo'),
-      recSaveB=document.getElementById('recSave'), recShareB=document.getElementById('recShare');
-let recorder=null, recChunks=[], recTimer=0, recStart=0, recURL='', recFile=null, recMime='', recDims='';
+      recSaveB=document.getElementById('recSave'), recShareB=document.getElementById('recShare'), recSendB=document.getElementById('recSend');
+let recStream=null, recOwned=[], recorder=null, recChunks=[], recTimer=0, recStart=0, recURL='', recFile=null, recMime='', recDims='';
 // ---------- Microphone: mixed into the recording only, never to the speaker (no feedback) ----------
 let micStream=null, micSrc=null, micGain=null, recMicOk=false;
 // raw capture: echo-cancel / noise-suppress / auto-gain put phones into "call mode" (narrow, hissy voice), so they are OFF
@@ -730,36 +944,60 @@ function stopMic(){
   micStream=micSrc=micGain=null;
 }
 // ---------- Send the video to the user's chat with the bot (via the Worker) ----------
-const writeOK=()=>new Promise(r=>{ try{ tg.requestWriteAccess(ok=>r(ok!==false)); }catch(e){ r(true); } });
+// if Telegram never answers requestWriteAccess (old clients), do not hang: continue after 4 s, the Worker will report a real error if sending is not allowed
+const writeOK=()=>new Promise(r=>{ let done=false; const fin=v=>{ if(!done){ done=true; r(v); } };
+  setTimeout(()=>fin(true),4000);
+  try{ tg.requestWriteAccess(ok=>fin(ok!==false)); }catch(e){ fin(true); } });
+// XHR instead of fetch: gives upload progress, a timeout, and the Worker's real status / error text
+function uploadVideo(){
+  return new Promise((resolve,reject)=>{
+    const x=new XMLHttpRequest(); x.open('POST',UPLOAD_URL);
+    x.setRequestHeader('X-Init-Data',tg.initData); x.setRequestHeader('X-File-Name',recFile.name); x.setRequestHeader('Content-Type',recFile.type);
+    x.timeout=900000;
+    x.upload.onprogress=e=>{ if(e.lengthComputable){ const p=Math.round(e.loaded/e.total*100);
+      recInfo.textContent= p<100 ? tr('upProg',{p:p,a:(e.loaded/1048576).toFixed(1),b:(e.total/1048576).toFixed(1)}) : tr('upDone'); } };
+    x.onload=()=>{ x.status>=200&&x.status<300 ? resolve(x.responseText) : reject(new Error(tr('errCode',{s:x.status,r:(x.responseText||'').slice(0,300)}))); };
+    x.onerror=()=>reject(new Error(tr('errNet')));
+    x.ontimeout=()=>reject(new Error(tr('errTimeout')));
+    x.send(recFile);
+  });
+}
 async function sendToChat(){
-  if(recFile.size>49*1048576){ recInfo.textContent='حجم ویدیو از ۵۰ مگابایت بیشتره؛ کوتاه‌تر ضبط کن'; return; }
-  recSaveB.disabled=true; recInfo.textContent='در حال ارسال…';
+  if(recFile.size>49*1048576){ recInfo.textContent=tr('tooBig'); return; }
+  recSaveB.disabled=true; recSendB.disabled=true; recInfo.textContent=tr('sending');
   try{
-    if(!(await writeOK())) throw new Error('اجازه‌ی ارسال پیام از ربات داده نشد');
-    const r=await fetch(UPLOAD_URL,{ method:'POST',
-      headers:{ 'X-Init-Data':tg.initData, 'X-File-Name':recFile.name, 'Content-Type':recFile.type }, body:recFile });
-    if(!r.ok) throw new Error(await r.text());
-    recInfo.textContent='✅ ویدیو توی چت ربات ارسال شد';
+    if(!(await writeOK())) throw new Error(tr('allowDenied'));
+    await uploadVideo();
+    recInfo.textContent=tr('sent');
     try{ tg.HapticFeedback.notificationOccurred('success'); }catch(e){}
-  }catch(e){ recInfo.textContent='ارسال نشد: '+e.message; }
-  recSaveB.disabled=false;
+  }catch(e){ recInfo.textContent=tr('sendFail')+e.message; }
+  recSaveB.disabled=false; recSendB.disabled=false;
 }
 function pickMime(){
-  const t=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1,mp4a.40.2','video/mp4',
-           'video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  // H.264 High/Main level 4.x first (Baseline 3.0 is too small for a portrait full-screen canvas); VP8 before VP9 (VP9 is too heavy for phones in realtime)
+  const t=['video/mp4;codecs=avc1.640028,mp4a.40.2','video/mp4;codecs=avc1.4D4028,mp4a.40.2','video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+           'video/mp4;codecs=avc1,mp4a.40.2','video/mp4',
+           'video/webm;codecs=h264,opus','video/webm;codecs=vp8,opus','video/webm;codecs=vp9,opus','video/webm'];
   return window.MediaRecorder ? (t.find(x=>MediaRecorder.isTypeSupported(x))||'') : '';
 }
 async function startRec(){
-  if(!window.MediaRecorder || !canvas.captureStream){ alert('این مرورگر ضبط ویدیو رو پشتیبانی نمی‌کنه'); return; }
+  if(!window.MediaRecorder || !canvas.captureStream){ alert(tr('noRec')); return; }
   recMicOk=await startMic();                              // ask for the mic first (a permission prompt may appear)
-  recording=true; resize();                               // switch to the hi-res canvas BEFORE capturing
-  await new Promise(r=>setTimeout(r,200));                // let a frame render at the new size
+  recording=true;                                         // canvas keeps its live size: no resize, no hitch
   recDims=canvas.width+'×'+canvas.height;
   const vs=canvas.captureStream(30);
-  if(recDest) recDest.stream.getAudioTracks().forEach(t=>vs.addTrack(t));
+  recStream=vs; recOwned=[];
+  if(recDest){
+    try{ master.connect(recGain); }catch(e){}
+    recDest.stream.getAudioTracks().forEach(t=>{ let c=t; try{ c=t.clone(); recOwned.push(c); }catch(e){} vs.addTrack(c); });
+  }
   recMime=pickMime();
-  const opts={videoBitsPerSecond:4000000, audioBitsPerSecond:128000}; if(recMime) opts.mimeType=recMime;
-  try{ recorder=new MediaRecorder(vs,opts); }catch(e){ recorder=new MediaRecorder(vs); }
+  const opts={videoBitsPerSecond:8000000, audioBitsPerSecond:192000}; if(recMime) opts.mimeType=recMime;
+  try{
+    try{ recorder=new MediaRecorder(vs,opts); }catch(e){ recorder=new MediaRecorder(vs); }
+  }catch(e){
+    console.error(e); recording=false; stopMic(); releaseRec(); alert(tr('recFail')); return;
+  }
   recChunks=[];
   recorder.ondataavailable=e=>{ if(e.data&&e.data.size) recChunks.push(e.data); };
   recorder.onstop=finishRec;
@@ -771,8 +1009,13 @@ async function startRec(){
     if(t>=MAX_REC_SEC && recorder && recorder.state==='recording') recorder.stop();
     recInd.textContent=String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'); },250);
 }
+function releaseRec(){   // stop the canvas capture + audio tap, otherwise they keep costing fps after the recording
+  try{ if(recStream) recStream.getVideoTracks().forEach(t=>t.stop()); recOwned.forEach(t=>t.stop()); }catch(e){}
+  try{ if(recGain) master.disconnect(recGain); }catch(e){}
+  recStream=null; recOwned=[];
+}
 function finishRec(){
-  clearInterval(recTimer); recording=false; resize(); stopMic();
+  clearInterval(recTimer); recording=false; resize(); stopMic(); releaseRec();
   if(IN_TG) try{ tg.disableClosingConfirmation(); }catch(e){}
   recBtn.classList.remove('on'); recBtn.textContent='⏺'; recInd.style.display='none';
   const type=(recorder&&recorder.mimeType)||recMime||'video/webm', base=type.split(';')[0];
@@ -782,12 +1025,14 @@ function finishRec(){
   recURL=URL.createObjectURL(blob);
   recFile=new File([blob],`saman-chords-${Date.now()}.${ext}`,{type:base});
   recVideo.src=recURL;
-  recInfo.textContent=`فرمت ${ext.toUpperCase()} · ${(blob.size/1048576).toFixed(1)} مگابایت · ${recDims} · ${recMicOk?'🎙 با میکروفون':'بدون میکروفون'}`
-    + (ext==='webm' && !IN_TG ? ' — اگه اینستاگرام WEBM رو قبول نکرد، با یه مبدل به MP4 تبدیلش کن' : '');
+  recInfo.textContent=tr('recInfo',{ext:ext.toUpperCase(),mb:(blob.size/1048576).toFixed(1),dims:recDims,mic:tr(recMicOk?'micOn':'micOff')})
+    + (ext==='webm' && !IN_TG ? tr('webmNote') : '');
   let canShare=false; try{ canShare=!!(navigator.canShare && navigator.canShare({files:[recFile]})); }catch(e){}
-  const viaChat=IN_TG&&!!UPLOAD_URL;
-  recSaveB.textContent=viaChat?'ارسال به چت':'ذخیره'; recSaveB.disabled=false;
-  recShareB.style.display=(canShare&&!viaChat)?'':'none';
+  if(!canShare && IN_TG && navigator.share) canShare=true;     // Telegram's webview often reports canShare=false although share works: just try it
+  recSaveB.textContent=tr('recSave'); recSaveB.disabled=false;
+  recSendB.disabled=false; recSendB.style.display=(IN_TG&&UPLOAD_URL)?'':'none';   // "send to bot chat" button: only inside Telegram and when a Worker URL is set
+  recShareB.style.display=canShare?'':'none';
+  recSaveB.style.display=(IN_TG&&(canShare||UPLOAD_URL))?'none':'';      // inside Telegram: Share is the way to save; Save stays only as a fallback
   modalOpen=true; setChord(-1);
   recModal.classList.add('open');
 }
@@ -798,14 +1043,25 @@ recBtn.onclick=()=>{
   showCtrls();
   if(recorder && recorder.state==='recording') recorder.stop(); else startRec();
 };
-recSaveB.onclick=()=>{
+async function shareRec(){
+  try{ await navigator.share({files:[recFile], title:'Saman Chords'}); return true; }
+  catch(e){ return !!(e&&e.name==='AbortError'); }    // true = handled (shared or cancelled by the user)
+}
+recSaveB.onclick=async()=>{
   if(!recFile) return;
-  if(IN_TG && UPLOAD_URL){ sendToChat(); return; }
+  if(IN_TG){
+    if(UPLOAD_URL){ sendToChat(); return; }
+    // downloads via <a download> are silently ignored inside Telegram: use the system share sheet instead
+    if(navigator.share && await shareRec()) return;
+    recInfo.textContent=tr('tgNoShare');
+    return;
+  }
   const a=document.createElement('a'); a.href=recURL; a.download=recFile.name;
   document.body.appendChild(a); a.click(); a.remove();
 };
+recSendB.onclick=()=>{ if(recFile) sendToChat(); };
 recShareB.onclick=async()=>{
-  try{ await navigator.share({files:[recFile], title:'Saman Chords'}); }catch(e){ /* cancelled */ }
+  if(!(await shareRec())) recInfo.textContent=tr('shareFail');
 };
 document.getElementById('recClose').onclick=closeRec;
 
@@ -813,14 +1069,15 @@ document.getElementById('recClose').onclick=closeRec;
 document.getElementById('startBtn').addEventListener('click',async()=>{
   const msg=document.getElementById('msg'); msg.textContent='';
   try{
-    initAudio(); await actx.resume();
+    if(!actx) initAudio();
+    await actx.resume();
     await startAll();
     document.getElementById('start').style.display='none';
   }catch(e){
     console.error(e);
     msg.textContent = e&&e.name==='NotAllowedError'
-      ? 'اجازه‌ی دوربین داده نشد. از تنظیمات گوشی، دسترسی دوربین رو برای تلگرام فعال کن و دوباره امتحان کن.'
-      : 'دسترسی به دوربین ممکن نشد یا اینترنت (برای لود مدل دست) قطع است: '+e.message;
+      ? tr('camDenied')
+      : tr('camFail')+e.message;
   }
 });
 
@@ -838,13 +1095,21 @@ document.getElementById('startBtn').addEventListener('click',async()=>{
       else window.open(CHANNEL_URL,'_blank');
     }catch(e){ window.open(CHANNEL_URL,'_blank'); }
     joinedBtn.disabled=false;
-    gateMsg.textContent='بعد از عضویت برگرد اینجا و «عضو شدم» رو بزن';
+    gateClicked=true; gateMsg.textContent=tr('gateMsgAfter');
   });
   joinedBtn.addEventListener('click',()=>{
     try{ localStorage.setItem(JOIN_KEY,'1'); }catch(e){}
     showIntro();
   });
 })();
+
+// ---------- Language toggle ----------
+document.getElementById('langBtn').addEventListener('click',()=>{
+  LANG = LANG==='fa' ? 'en' : 'fa';
+  try{ localStorage.setItem(LANG_KEY,LANG); }catch(e){}
+  applyLang();
+});
+applyLang();
 </script>
 </body>
 </html>
