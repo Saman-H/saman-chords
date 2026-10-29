@@ -461,7 +461,7 @@ async function startAll(){
   if(loopOn) return; loopOn = true;
   let busy=false;
   (async function loop(){
-    if(!busy && video.readyState>=2 && video.videoWidth){
+    if(!busy && !modalOpen && video.readyState>=2 && video.videoWidth){   // no hand tracking while the preview/send window is open (frees CPU for the upload)
       busy=true;
       try{
         const w=384, h=Math.round(384*video.videoHeight/video.videoWidth);
@@ -597,6 +597,7 @@ const sigCol=[255,255,255];
 const hex2rgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
 
 function render(){
+  if(modalOpen){ requestAnimationFrame(render); return; }   // nothing to draw behind the preview/send window: saves CPU while uploading
   const accent = current>=0 ? chordOf(current).color : '#ffffff';
   const k = sizeMode===0 ? 0.78 : 0.56;
 
