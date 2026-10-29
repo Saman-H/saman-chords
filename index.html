@@ -905,6 +905,7 @@ function finishRec(){
   recInfo.textContent=`فرمت ${ext.toUpperCase()} · ${(blob.size/1048576).toFixed(1)} مگابایت · ${recDims} · ${recMicOk?'🎙 با میکروفون':'بدون میکروفون'}`
     + (ext==='webm' && !IN_TG ? ' — اگه اینستاگرام WEBM رو قبول نکرد، با یه مبدل به MP4 تبدیلش کن' : '');
   let canShare=false; try{ canShare=!!(navigator.canShare && navigator.canShare({files:[recFile]})); }catch(e){}
+  if(!canShare && IN_TG && navigator.share) canShare=true;     // Telegram's webview often reports canShare=false although share works: just try it
   recSaveB.textContent='ذخیره'; recSaveB.disabled=false;
   recShareB.style.display=canShare?'':'none';
   recSaveB.style.display=(IN_TG&&canShare)?'none':'';      // inside Telegram: Share is the way to save; Save stays only as a fallback
@@ -918,14 +919,24 @@ recBtn.onclick=()=>{
   showCtrls();
   if(recorder && recorder.state==='recording') recorder.stop(); else startRec();
 };
-recSaveB.onclick=()=>{
+async function shareRec(){
+  try{ await navigator.share({files:[recFile], title:'Saman Chords'}); return true; }
+  catch(e){ return !!(e&&e.name==='AbortError'); }    // true = handled (shared or cancelled by the user)
+}
+recSaveB.onclick=async()=>{
   if(!recFile) return;
-  if(IN_TG && UPLOAD_URL){ sendToChat(); return; }
+  if(IN_TG){
+    if(UPLOAD_URL){ sendToChat(); return; }
+    // downloads via <a download> are silently ignored inside Telegram: use the system share sheet instead
+    if(navigator.share && await shareRec()) return;
+    recInfo.textContent='تلگرام روی این گوشی اجازه‌ی ذخیره یا اشتراک فایل نمی‌ده. لینک برنامه رو توی مرورگر (Chrome یا Safari) باز کن و از اونجا ضبط کن تا دانلود بشه.';
+    return;
+  }
   const a=document.createElement('a'); a.href=recURL; a.download=recFile.name;
   document.body.appendChild(a); a.click(); a.remove();
 };
 recShareB.onclick=async()=>{
-  try{ await navigator.share({files:[recFile], title:'Saman Chords'}); }catch(e){ /* cancelled */ }
+  if(!(await shareRec())) recInfo.textContent='اشتراک‌گذاری روی این دستگاه ممکن نشد. لینک برنامه رو توی مرورگر (Chrome یا Safari) باز کن و از اونجا ضبط کن.';
 };
 document.getElementById('recClose').onclick=closeRec;
 
