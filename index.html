@@ -124,6 +124,7 @@
   <video id="recVideo" controls playsinline></video>
   <div id="recInfo"></div>
   <div class="rrow">
+    <button class="rbtn main" id="recSend" style="display:none">دریافت در چت ربات</button>
     <button class="rbtn main" id="recSave">ذخیره</button>
     <button class="rbtn" id="recShare">اشتراک‌گذاری</button>
     <button class="rbtn" id="recClose">بستن</button>
@@ -182,7 +183,7 @@
 
 <script>
 // ---------- Config ----------
-const UPLOAD_URL = '';   // send-to-chat disabled (was: 'https://saman-chord-upload.samanhaeri8.workers.dev'). Recording is shared/saved from the phone instead;   // your Cloudflare Worker URL, e.g. 'https://saman-chords.NAME.workers.dev'. Empty = old behaviour (download / share)
+const UPLOAD_URL = 'https://saman-chord-upload.samanhaeri8.workers.dev';   // your Cloudflare Worker URL, e.g. 'https://saman-chords.NAME.workers.dev'. Empty = old behaviour (download / share)
 const MP_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/';   // or './mediapipe/' when self-hosted
 const APP_REC_GAIN = 0.5;   // level of the app's sound in the RECORDING only (0.5 = -6 dB; lower = quieter app, voice stands out more). Speaker/headphones and mic are untouched.
 const MAX_REC_SEC = Infinity;  // no time limit (about 60 MB per minute at 8 Mbps; the whole video is held in phone memory until you stop)
@@ -795,7 +796,7 @@ document.getElementById('flip').onclick=async()=>{
 // ---------- Recording (canvas + synth audio) ----------
 const recBtn=document.getElementById('rec'), recInd=document.getElementById('recInd'), recModal=document.getElementById('recModal'),
       recVideo=document.getElementById('recVideo'), recInfo=document.getElementById('recInfo'),
-      recSaveB=document.getElementById('recSave'), recShareB=document.getElementById('recShare');
+      recSaveB=document.getElementById('recSave'), recShareB=document.getElementById('recShare'), recSendB=document.getElementById('recSend');
 let recStream=null, recOwned=[], recorder=null, recChunks=[], recTimer=0, recStart=0, recURL='', recFile=null, recMime='', recDims='';
 // ---------- Microphone: mixed into the recording only, never to the speaker (no feedback) ----------
 let micStream=null, micSrc=null, micGain=null, recMicOk=false;
@@ -839,7 +840,7 @@ function stopMic(){
 const writeOK=()=>new Promise(r=>{ try{ tg.requestWriteAccess(ok=>r(ok!==false)); }catch(e){ r(true); } });
 async function sendToChat(){
   if(recFile.size>49*1048576){ recInfo.textContent='حجم ویدیو از ۵۰ مگابایت بیشتره؛ کوتاه‌تر ضبط کن'; return; }
-  recSaveB.disabled=true; recInfo.textContent='در حال ارسال…';
+  recSendB.disabled=true; recInfo.textContent='در حال ارسال…';
   try{
     if(!(await writeOK())) throw new Error('اجازه‌ی ارسال پیام از ربات داده نشد');
     const r=await fetch(UPLOAD_URL,{ method:'POST',
@@ -848,7 +849,7 @@ async function sendToChat(){
     recInfo.textContent='✅ ویدیو توی چت ربات ارسال شد';
     try{ tg.HapticFeedback.notificationOccurred('success'); }catch(e){}
   }catch(e){ recInfo.textContent='ارسال نشد: '+e.message; }
-  recSaveB.disabled=false;
+  recSaveB.disabled=false; recSendB.disabled=false;
 }
 function pickMime(){
   // H.264 High/Main level 4.x first (Baseline 3.0 is too small for a portrait full-screen canvas); VP8 before VP9 (VP9 is too heavy for phones in realtime)
@@ -907,8 +908,9 @@ function finishRec(){
   let canShare=false; try{ canShare=!!(navigator.canShare && navigator.canShare({files:[recFile]})); }catch(e){}
   if(!canShare && IN_TG && navigator.share) canShare=true;     // Telegram's webview often reports canShare=false although share works: just try it
   recSaveB.textContent='ذخیره'; recSaveB.disabled=false;
+  recSendB.disabled=false; recSendB.style.display=(IN_TG&&UPLOAD_URL)?'':'none';   // "send to bot chat" button: only inside Telegram and when a Worker URL is set
   recShareB.style.display=canShare?'':'none';
-  recSaveB.style.display=(IN_TG&&canShare)?'none':'';      // inside Telegram: Share is the way to save; Save stays only as a fallback
+  recSaveB.style.display=(IN_TG&&(canShare||UPLOAD_URL))?'none':'';      // inside Telegram: Share is the way to save; Save stays only as a fallback
   modalOpen=true; setChord(-1);
   recModal.classList.add('open');
 }
@@ -935,6 +937,7 @@ recSaveB.onclick=async()=>{
   const a=document.createElement('a'); a.href=recURL; a.download=recFile.name;
   document.body.appendChild(a); a.click(); a.remove();
 };
+recSendB.onclick=()=>{ if(recFile) sendToChat(); };
 recShareB.onclick=async()=>{
   if(!(await shareRec())) recInfo.textContent='اشتراک‌گذاری روی این دستگاه ممکن نشد. لینک برنامه رو توی مرورگر (Chrome یا Safari) باز کن و از اونجا ضبط کن.';
 };
