@@ -1,0 +1,6 @@
+name = "saman-chords-upload"
+main = "index.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+ALLOW_ORIGIN = "https://saman-h.github.io"
